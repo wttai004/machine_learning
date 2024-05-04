@@ -133,17 +133,6 @@ class Model:
             for j in range(self.L2):
                 result = result * (np.sum([spin1[i, j, k]*spin2[i, j, k] for k in range(2)]))
         return result
-
-
-    def reset_Hamiltonian(self):
-        #sets the Hamiltonian to zero-for debugging purpose
-        self.Hamiltonian = np.zeros((self.L1, self.L2, self.L1, self.L2, 2, 2, 2, 2))
-        
-    def get_Hamiltonian(self):
-        #returns an operator object that represents the Hamiltonian
-        newObject = Operator(self)
-        newObject.twositeoperators = self.Hamiltonian
-        return newObject 
     
 
 
