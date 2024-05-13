@@ -99,7 +99,6 @@ class Operator:
         newObject.onesiteoperators = self.onesiteoperators + other.onesiteoperators
         newObject.twositeoperators = self.twositeoperators + other.twositeoperators
         return newObject
-  
 
     def vdot(self, spin1, spin2):
         #return the vector product between the operator and the spin
