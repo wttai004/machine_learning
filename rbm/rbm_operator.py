@@ -245,3 +245,27 @@ if __name__ == "__main__":
         batch = rbm.create_batch(200) #This uses evaluate_dummy, which gives 2/3 for spin up and 1/3 for spin down 
         average_expectations = [rbm.expectation_value(SzSz_(0,0,0,1,model), batch[i]) for i in range(len(batch))]
         print(f"The average expectation for a 2:1 mixed state is {np.mean(average_expectations)})")
+
+    # Test the model expectation
+    test_expectation = True
+    if test_expectation:
+        model = Model(2,3)
+        rbm = RBM(model)
+
+        N = 100
+
+        #create a batch
+        batch = rbm.create_batch(N)
+        # Implement a Hamiltonian
+
+        Ham =  set_J1_Hamiltonian(model, J = 1)#set_h_Hamiltonian(model, h = 4)
+
+        Szs = set_h_Hamiltonian(model, h = 1)
+
+        print(f"the spin expectation value is {rbm.expectation_value_batch(Szs, batch)}")
+
+        def calculate_Sz_expectation_brute_force(spins):
+            return  np.mean(np.sum(batch[:, :, :, 0]/2 - batch[:, :, :, 1]/2, axis=(1, 2)))
+
+        print(f"the naive spin expectation value is {calculate_Sz_expectation_brute_force(batch)}")
+        

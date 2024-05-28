@@ -35,7 +35,7 @@ class RBM:
 
     def evaluate_dummy(self, spin) -> float:
         assert spin.shape == (self.L1, self.L2, 2), f"Invalid spin shape {spin.shape}"
-        return 20 if (spin[0, 0, 0] == 1 and spin[0,1,0] == 1) else 1
+        return 20 if (spin[0, 0, 0] == 1) else 1
 
     def metropolis_step(self, spin):
         """
@@ -43,8 +43,8 @@ class RBM:
         """
         spin2 = self.model.flip_random_spin(spin)
         #print(self.evaluate(spin2),self.evaluate(spin))
-        #p = min(1, (self.evaluate(spin2) / self.evaluate(spin))**2)
-        p = min(1, (self.evaluate_dummy(spin2) / self.evaluate_dummy(spin)))
+        p = min(1, (self.evaluate(spin2) / self.evaluate(spin))**2)
+        #p = min(1, (self.evaluate_dummy(spin2) / self.evaluate_dummy(spin)))
         if random.random() < p:
             return spin2
         return spin
@@ -66,16 +66,35 @@ class RBM:
                 result_array[i//skip] = current_spins
         return result_array
 
-    def expectation_value(self, operator, spin, burn_in = 100, skip = 10):
+    def expectation_value(self, operator, spin):
         """
         Evaluate the expectation value of an operator for a given spin configuration
         """
         assert spin.shape == (self.L1, self.L2, 2), f"Invalid spin shape {spin.shape}"
         spin1 = spin
-        spin2s = self.model.generate_local_spins(spin1, change = 2)#[self.model.get_random_spins() for _ in range(N)]#self.create_batch(N, burn_in = burn_in, skip = skip)
+        spin2s = self.model.generate_local_spins(spin1, change = 2)
         result = 0
         for spin2 in spin2s:
             #print(spin1, spin2)
             #print(spin1, spin2, operator.vdot(spin1, spin2), self.evaluate_dummy(spin2), self.evaluate_dummy(spin1))
-            result += operator.vdot(spin1, spin2) * self.evaluate_dummy(spin2) / self.evaluate_dummy(spin1)
+            result += operator.vdot(spin1, spin2) * self.evaluate(spin2) / self.evaluate(spin1)
         return result
+    
+    def expectation_value_batch(self, operator, spins):
+        """
+        Evaluate the expectation value of an operator for the batch spins
+        """
+        result = 0
+        for spin in spins:
+            result += self.expectation_value(operator, spin)
+        return result / len(spins)
+        
+    def expectation_value_with_new_batch(self, operator, N = 10, burn_in = 100, skip = 10):
+        """
+        Evaluate the expectation value of an operator for a batch of spin configurations
+        """
+        spins = self.create_batch(N, burn_in = burn_in, skip = skip)
+        result = 0
+        for spin in spins:
+            result += self.expectation_value(operator, spin)
+        return result / len(spins)
