@@ -1,6 +1,7 @@
 from model import Model
 import numpy as np
 import random
+from numpy import tanh
 
 class RBM:
     """
@@ -12,9 +13,20 @@ class RBM:
         self.L2 = model.L2
         self.M = 3*int(self.L1*self.L2/2)
 
-        self.a = np.random.random(self.L1*self.L2)-0.5#np.ones(self.L1 * self.L2)
-        self.b = np.random.random(self.M)-0.5#np.zeros(self.M)
-        self.M = np.random.random((self.M, self.L1 * self.L2))-0.5#np.ones((self.M, self.L1 * self.L2))
+        self.a = (np.random.random(self.L1*self.L2)-0.5) + 1j * (np.random.random(self.L1*self.L2) -0.5) #np.ones(self.L1 * self.L2)
+        self.b = (np.random.random(self.M)-0.5) + 1j * (np.random.random(self.M)-0.5)#np.zeros(self.M)
+        self.M = (np.random.random((self.M, self.L1 * self.L2))-0.5) + 1j * (np.random.random((self.M, self.L1 * self.L2))-0.5)#np.ones((self.M, self.L1 * self.L2))
+
+    def get_weights(self):
+        #Helper function, return the weights
+        return self.a, self.b, self.M
+    
+    def set_weights(self, a, b, M):
+        #Helper function, set the weights
+        self.a = a
+        self.b = b
+        self.M = M
+
 
     def theta(self, spin)->float:
         """
@@ -34,6 +46,7 @@ class RBM:
         return np.exp(np.dot(self.a, projected_spin)) * np.prod(2 * np.cosh(self.b + np.dot(self.M, projected_spin)))
 
     def evaluate_dummy(self, spin) -> float:
+        #This is just for debugging use
         assert spin.shape == (self.L1, self.L2, 2), f"Invalid spin shape {spin.shape}"
         return 20 if (spin[0, 0, 0] == 1) else 1
 
@@ -44,7 +57,6 @@ class RBM:
         spin2 = self.model.flip_random_spin(spin)
         #print(self.evaluate(spin2),self.evaluate(spin))
         p = min(1, (self.evaluate(spin2) / self.evaluate(spin))**2)
-        #p = min(1, (self.evaluate_dummy(spin2) / self.evaluate_dummy(spin)))
         if random.random() < p:
             return spin2
         return spin
@@ -98,3 +110,66 @@ class RBM:
         for spin in spins:
             result += self.expectation_value(operator, spin)
         return result / len(spins)
+    
+    def expectation_value_Sz(self, spin):
+        return np.sum(spin[:, :, 0]/2 - spin[:, :, 1]/2, axis=(0, 1))
+    
+    def decay(self, b):
+        return max(100*0.9**b, 0.01)
+    
+    def get_deltas(self, Ham, p, N = 100):
+        #create a batch
+        batch = self.create_batch(N)
+        # Implement a Hamiltonian
+        Es = np.array([self.expectation_value(Ham, spin) for spin in batch]) 
+        tanhs =  np.array([tanh(self.theta(spin)) for spin in batch])
+        sigmas = np.array([self.model.project_spin(spin) for spin in batch])
+
+        Oais =  sigmas
+        Objs =  tanhs
+        Owijs = tanhs[:, :, np.newaxis] * sigmas[:, np.newaxis, :]
+        # Flatten W and concatenate a, b, W
+        O = np.concatenate([Oais, Objs, Owijs.reshape(N, -1)], axis=1)
+        mean_O = np.mean(O, axis=0)
+        # Compute <Oj Ok>
+        Oj_Ok = np.einsum('ij,ik->jk', O, O) / N
+        # Compute <Oj><Ok>
+        mean_Oj_Ok = np.outer(mean_O, mean_O)
+        # Correlation matrix
+        Skk = Oj_Ok - mean_Oj_Ok
+
+        Skk_reg = Skk + self.decay(1) * np.eye(Skk.shape[0])
+        Skk_inv = np.linalg.inv(Skk_reg)
+
+        delta_as = np.mean(Es[:, np.newaxis] * sigmas, axis = 0) - np.mean(Es) * np.mean(sigmas, axis = 0)
+        delta_bs = np.mean(Es[:, np.newaxis] * tanhs, axis = 0) - np.mean(Es) * np.mean(tanhs, axis = 0)
+        delta_Ws = np.mean(Es[:, np.newaxis, np.newaxis] * tanhs[:, :, np.newaxis] * sigmas[:, np.newaxis, :], axis = 0) - np.mean(Es) * np.mean(tanhs[:, :, np.newaxis] * sigmas[:, np.newaxis, :], axis = 0)
+
+        deltas = np.concatenate([delta_as, delta_bs, delta_Ws.reshape(-1)], axis=0)
+
+        deltas_reg = Skk_inv @ deltas
+        delta_as_reg = deltas_reg[:sigmas.shape[1]]
+        delta_bs_reg = deltas_reg[sigmas.shape[1]:sigmas.shape[1] + tanhs.shape[1]]
+        delta_Ws_reg = deltas_reg[sigmas.shape[1] + tanhs.shape[1]:].reshape(tanhs.shape[1], sigmas.shape[1])
+        return delta_as_reg, delta_bs_reg, delta_Ws_reg
+    
+    def update_weights(self, Ham, gamma, p, N = 100, verbose = True):
+        if verbose:
+            print(f"Updating weights at iteration {p}")
+        delta_as, delta_bs, delta_Ws = self.get_deltas(Ham, p)
+        self.a -= gamma * delta_as
+        self.b -= gamma * delta_bs
+        self.M -= gamma * delta_Ws
+
+    def calculate_Sz_expectation_brute_force(self, batch):
+        #Helper function
+        return  np.mean(np.sum(batch[:, :, :, 0]/2 - batch[:, :, :, 1]/2, axis=(1, 2)))
+
+    def train(self, Ham, gamma, operator = 0, N = 100, n_iter = 10, verbose = True):
+        for p in range(n_iter):
+            self.update_weights(Ham, gamma, p, N = N, verbose = verbose)
+            if verbose:
+                batch = self.create_batch(N)
+                print("Current energy:", self.expectation_value_batch(Ham, batch))
+                print("Current Sz:", self.calculate_Sz_expectation_brute_force(batch))
+        return self.a, self.b, self.M
