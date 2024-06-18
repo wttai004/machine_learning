@@ -61,7 +61,7 @@ class RBM:
             return spin2
         return spin
     
-    def create_batch(self, N, burn_in = 100, skip = 10):
+    def create_batch(self, N, burn_in = 1000, skip = 10):
         """
         Create a batch of N spins
         """
