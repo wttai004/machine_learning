@@ -1,0 +1,27 @@
+# Archive—where old useless files reside
+Archive/
+
+#pycache files
+_pycache_/
+
+# Log
+log/
+
+# Log files
+
+*.log
+
+# Old results
+QWZ_ed_results/
+
+# ipynb checkpoints
+.ipynb_checkpoints/
+
+# idk what this file is
+.DS_store
+
+# ignore all .sync files
+*.sync
+
+# ignore all .out files
+*.out
