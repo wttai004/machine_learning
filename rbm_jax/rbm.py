@@ -15,17 +15,17 @@ class RBM:
 
         self.a = (np.random.random(self.L1*self.L2)-0.5) + 1j * (np.random.random(self.L1*self.L2) -0.5) #np.ones(self.L1 * self.L2)
         self.b = (np.random.random(self.M)-0.5) + 1j * (np.random.random(self.M)-0.5)#np.zeros(self.M)
-        self.M = (np.random.random((self.M, self.L1 * self.L2))-0.5) + 1j * (np.random.random((self.M, self.L1 * self.L2))-0.5)#np.ones((self.M, self.L1 * self.L2))
+        self.W = (np.random.random((self.M, self.L1 * self.L2))-0.5) + 1j * (np.random.random((self.M, self.L1 * self.L2))-0.5)#np.ones((self.M, self.L1 * self.L2))
 
     def get_weights(self):
         #Helper function, return the weights
-        return self.a, self.b, self.M
+        return self.a, self.b, self.W
     
-    def set_weights(self, a, b, M):
+    def set_weights(self, a, b, W):
         #Helper function, set the weights
         self.a = a
         self.b = b
-        self.M = M
+        self.W = W
 
 
     def theta(self, spin)->float:
@@ -34,7 +34,7 @@ class RBM:
         """
         assert spin.shape == (self.L1, self.L2, 2), f"Invalid spin shape {spin.shape}"
         projected_spin = self.model.project_spin(spin)
-        return self.b + np.dot(self.M, projected_spin)
+        return self.b + np.dot(self.W, projected_spin)
 
     def evaluate(self, spin) -> float:
         """
@@ -43,7 +43,7 @@ class RBM:
         assert spin.shape == (self.L1, self.L2, 2), f"Invalid spin shape {spin.shape}"
         projected_spin = self.model.project_spin(spin)
         #print(self.M, projected_spin, np.prod(2 * np.cosh(self.b + np.dot(self.M, projected_spin))))
-        return np.exp(np.dot(self.a, projected_spin)) * np.prod(2 * np.cosh(self.b + np.dot(self.M, projected_spin)))
+        return np.exp(np.dot(self.a, projected_spin)) * np.prod(2 * np.cosh(self.b + np.dot(self.W, projected_spin)))
 
     def evaluate_dummy(self, spin) -> float:
         #This is just for debugging use
@@ -55,11 +55,8 @@ class RBM:
         Perform a single Metropolis step
         """
         spin2 = self.model.flip_random_spin(spin)
-        #print(self.evaluate(spin2),self.evaluate(spin))
         p = min(1, (self.evaluate(spin2) / self.evaluate(spin))**2)
-        if random.random() < p:
-            return spin2
-        return spin
+        return spin2 if random.random() < p else spin
     
     def create_batch(self, N, burn_in = 1000, skip = 10):
         """
@@ -106,12 +103,12 @@ class RBM:
         Evaluate the expectation value of an operator for a batch of spin configurations
         """
         spins = self.create_batch(N, burn_in = burn_in, skip = skip)
-        result = 0
-        for spin in spins:
-            result += self.expectation_value(operator, spin)
-        return result / len(spins)
+        return self.expectation_value_batch(operator, spins)
     
     def expectation_value_Sz(self, spin):
+        """
+        Evaluate the Sz expectation value
+        """
         return np.sum(spin[:, :, 0]/2 - spin[:, :, 1]/2, axis=(0, 1))
     
     def decay(self, b):
@@ -159,7 +156,7 @@ class RBM:
         delta_as, delta_bs, delta_Ws = self.get_deltas(Ham, p)
         self.a -= gamma * delta_as
         self.b -= gamma * delta_bs
-        self.M -= gamma * delta_Ws
+        self.W -= gamma * delta_Ws
 
     def calculate_Sz_expectation_brute_force(self, batch):
         #Helper function
@@ -172,4 +169,4 @@ class RBM:
                 batch = self.create_batch(N)
                 print("Current energy:", self.expectation_value_batch(Ham, batch))
                 print("Current Sz:", self.calculate_Sz_expectation_brute_force(batch))
-        return self.a, self.b, self.M
+        return self.a, self.b, self.W

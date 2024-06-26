@@ -47,6 +47,15 @@ class Model:
         spin2[i, j] = [1, 0] if spin1[i, j, 0] == 0 else [0, 1]
         return spin2
 
+
+    def flip_spin_at(self, spin, i, j):
+        """
+        Flip the spin at position (i, j) in the input spin array
+        """
+        new_spin = spin.copy()
+        new_spin[i, j] = [1, 0] if spin[i, j, 0] == 0 else [0, 1]
+        return new_spin
+
     def generate_local_spins(self, spin, change = 1):
         """
         Generate a set of spins with local perturbation around the input spin (flip one spins)
@@ -54,22 +63,11 @@ class Model:
         Change: consider how much spins can be changed at maximum (currently only allows change = 1 or 2)
         """
         result = [spin]
-        for i in range(self.L1):
-            for j in range(self.L2):
-                new_spin = spin.copy()
-                new_spin[i, j] = [1, 0] if spin[i, j, 0] == 0 else [0, 1]
-                result.append(new_spin)
-
+        result.extend([self.flip_spin_at(spin, i, j) for i in range(self.L1) for j in range(self.L2)])
         if change == 2:
-            for i in range(self.L1):
-                for j in range(self.L2):
-                    for k in range(self.L1):
-                        for l in range(self.L2):
-                            if i * self.L2 + j > k * self.L2 + l:
-                                new_spin = spin.copy()
-                                new_spin[i, j] = [1, 0] if spin[i, j, 0] == 0 else [0, 1]
-                                new_spin[k, l] = [1, 0] if spin[k, l, 0] == 0 else [0, 1]
-                                result.append(new_spin)
+            result.extend([self.flip_spin_at(self.flip_spin_at(spin, i, j), k, l) 
+                           for k in range(self.L1) for l in range(self.L2) for i in range(self.L1) for j in range(self.L2) if (k * self.L2 + l) > (i * self.L2 + j)])
+
         return result
 
     def add_SdotS_interaction(self, r1, r2, J):
@@ -128,10 +126,8 @@ class Model:
         #assert spin1.dtype == int, f"Hdot cannot handle spins of type {spin1.dtype}. Please convert this to int"
         #assert np.all(np.sum(spin1, axis = -1) == 1), "spin1 is not properly normalized"
         #assert np.all(np.sum(spin2, axis = -1) == 1), "spin2 is not properly normalized"
-        result = 1
-        for i in range(self.L1):
-            for j in range(self.L2):
-                result = result * (np.sum([spin1[i, j, k]*spin2[i, j, k] for k in range(2)]))
+        dot_product = np.sum(spin1 * spin2, axis=-1)
+        result = np.prod(dot_product)
         return result
     
 

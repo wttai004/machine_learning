@@ -1,4 +1,5 @@
-import numpy as np
+import jax
+import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import random
 
@@ -7,10 +8,11 @@ class Model:
     A model that represents a 2D lattice of spins with a Hamiltonian
     """
 
-    def __init__(self, L1, L2) -> None:
+    def __init__(self, L1, L2, seed = 0) -> None:
         self.L1 = L1
         self.L2 = L2
-        self.Hamiltonian = np.zeros((L1, L2, L1, L2, 2, 2, 2, 2), dtype = int)
+        self.Hamiltonian = jnp.zeros((L1, L2, L1, L2, 2, 2, 2, 2), dtype=int)
+        self.key = jax.random.PRNGKey(seed)
 
     def project_spin(self, spin):
         """
@@ -18,108 +20,69 @@ class Model:
 
         In lieu of the one-hot spin representation, each spin entry [1,0] and [0,1] is mapped to 1/2 and -1/2 respectively
         """
-        return spin[:,:,0].flatten() - 0.5
+        return jnp.array(spin[:,:,0].flatten(), dtype=jnp.float32) - 0.5
 
-    def unproject_spin(self,spin):
+    def unproject_spin(self, spin):
         """
         Helper function. Given the spins (L1*L2), project them back to a shape (L1, L2, 2)
         """
-        assert spin.shape == (self.L1*self.L2,), f"Invalid shape {spin.shape} for unproject_spin"
-        return np.array([[[1, 0] if spin[i*self.L2 + j] == 0.5 else [0, 1] for j in range(self.L2)] for i in range(self.L1)])
+        assert spin.shape == (self.L1 * self.L2,), f"Invalid shape {spin.shape} for unproject_spin"
+        return jnp.array([[[1, 0] if spin[i * self.L2 + j] == 0.5 else [0, 1] for j in range(self.L2)] for i in range(self.L1)])
+
 
     def get_random_spins(self):
         """
         return: a 2D array (L1, L2, 2) of random spins
         Each site has either spin up [1,0] or spin down [0,1]
         """
-        np.random.seed(0) #For ease of debugging, we set the seed to 0
-        return np.array([[random.choice([[1, 0], [0, 1]]) for _ in range(self.L2)] for _ in range(self.L1)])
-        #np.random.choice([-1, 1], size=(self.L1, self.L2))
+        #raise NotImplementedError("get_random_spins is not implemented properly")
+        self.key, subkey = jax.random.split(self.key)
+        spins_flat = jax.random.choice(subkey, jnp.array([[1, 0], [0, 1]]), shape=(self.L1 * self.L2,))
+        spins = spins_flat.reshape(self.L1, self.L2, 2)
+        return spins
     
     def flip_random_spin(self, spin1):
         """
         return: a 2D array (L1, L2, 2) of spins with one random spin flipped
         """
         spin2 = spin1.copy()
+        self.key, subkey = jax.random.split(self.key)
+        i = jax.random.randint(subkey, (1,), 0, self.L1)[0]
+        self.key, subkey = jax.random.split(self.key)
+        j = jax.random.randint(subkey, (1,), 0, self.L2)[0]
         i, j = random.randint(0, self.L1-1), random.randint(0, self.L2-1)
         assert spin1[i,j,0] == 0 or spin1[i,j,0] == 1, f"Invalid spin value {spin1[i,j,0]}"
         assert spin2[i,j,0] == 0 or spin2[i,j,0] == 1, f"Invalid spin value {spin2[i,j,0]}"
-        spin2[i, j] = [1, 0] if spin1[i, j, 0] == 0 else [0, 1]
+        spin2 = spin2.at[i, j].set([1, 0] if spin1[i, j, 0] == 0 else [0, 1])
         return spin2
-
-    def generate_local_spins(self, spin, change = 1):
+    
+    def flip_spin_at(self, spin, i, j):
+        """
+        Flip the spin at position (i, j) in the input spin array
+        """
+        new_spin = spin.at[i, j].set(jnp.array([1, 0]) if spin[i, j, 0] == 0 else jnp.array([0, 1]))
+        return new_spin
+    
+    def generate_local_spins(self, spin, change=1):
         """
         Generate a set of spins with local perturbation around the input spin (flip one spins)
 
         Change: consider how much spins can be changed at maximum (currently only allows change = 1 or 2)
         """
+        assert change == 1 or change == 2, f"Invalid change value {change}"
         result = [spin]
-        for i in range(self.L1):
-            for j in range(self.L2):
-                new_spin = spin.copy()
-                new_spin[i, j] = [1, 0] if spin[i, j, 0] == 0 else [0, 1]
-                result.append(new_spin)
-
+        result.extend([self.flip_spin_at(spin, i, j) for i in range(self.L1) for j in range(self.L2)])
+        
         if change == 2:
-            for i in range(self.L1):
-                for j in range(self.L2):
-                    for k in range(self.L1):
-                        for l in range(self.L2):
-                            if i * self.L2 + j > k * self.L2 + l:
-                                new_spin = spin.copy()
-                                new_spin[i, j] = [1, 0] if spin[i, j, 0] == 0 else [0, 1]
-                                new_spin[k, l] = [1, 0] if spin[k, l, 0] == 0 else [0, 1]
-                                result.append(new_spin)
+            result.extend([self.flip_spin_at(self.flip_spin_at(spin, i, j), k, l)
+                           for i in range(self.L1) for j in range(self.L2)
+                           for k in range(self.L1) for l in range(self.L2)
+                           if (k * self.L2 + l) > (i * self.L2 + j)])
+
         return result
 
-    def add_SdotS_interaction(self, r1, r2, J):
-        """ 
-        Add the S(r1).S(r2) interaction between spins at r1 and r2, with strength J
 
-        The Hamiltonian represents the entries 1/2(S+(r1).S-(r2) + S-(r1).S+(r2)) + Sz(r1).Sz(r2)
-        """
-        self.Hamiltonian[r1[0], r1[1], r2[0], r2[1], 0, 0, 0, 0] += J/4 
-        self.Hamiltonian[r1[0], r1[1], r2[0], r2[1], 0, 1, 0, 1] += -J/4 
-        self.Hamiltonian[r1[0], r1[1], r2[0], r2[1], 0, 1, 1, 0] += J/2
-        self.Hamiltonian[r1[0], r1[1], r2[0], r2[1], 1, 0, 1, 0] += -J/4 
-        self.Hamiltonian[r1[0], r1[1], r2[0], r2[1], 1, 0, 0, 1] += J/2
-        self.Hamiltonian[r1[0], r1[1], r2[0], r2[1], 1, 1, 1, 1] += J/4 
 
-    def set_J1_Hamiltonian(self, J):
-        """
-        Sets the Hamiltonian to be the J1 Heisenberg model
-        """
-        for i in range(self.L1-1):
-            for j in range(self.L2):
-                self.add_SdotS_interaction((i, j), (i+1, j), J)  
-                self.add_SdotS_interaction((i+1, j), (i, j), J)  
-        for i in range(self.L1):
-            for j in range(self.L2-1):        
-                self.add_SdotS_interaction((i, j), (i, j+1), J)  
-                self.add_SdotS_interaction((i, j+1), (i, j), J)      
-
-    def set_J2_Hamiltonian(self, J):
-        """
-        Sets the Hamiltonian to be the J2 Heisenberg model
-        """
-        for i in range(self.L1-1):
-            for j in range(self.L2-1):
-                self.add_SdotS_interaction((i, j), (i+1, j+1), J)  
-        for i in range(self.L1):
-            for j in range(self.L2-1):        
-                self.add_SdotS_interaction((i+1, j), (i, j+1), J)           
-
-    def Hdot(self, spin1, spin2):
-        """
-        #get the Hamiltonian expectation value <spin1|H|spin2>
-        #where spin1 and spin2 are 2D arrays (L1, L2) generated by get_random_spins or equivalent
-        """
-        assert spin1.dtype == int, f"Hdot cannot handle spins of type {spin1.dtype}. Please convert this to int"
-        assert np.all(np.sum(spin1, axis = -1) == 1), "spin1 is not properly normalized"
-        assert np.all(np.sum(spin2, axis = -1) == 1), "spin1 is not properly normalized"
-        result = np.einsum('ija,klb,ijc,kld,ijklabcd->', spin1, spin1, spin2, spin2, self.Hamiltonian)
-        return result
-    
     def vdot(self, spin1, spin2):
         """
         #get the overlap expectation value <spin1|spin2>
@@ -128,12 +91,11 @@ class Model:
         #assert spin1.dtype == int, f"Hdot cannot handle spins of type {spin1.dtype}. Please convert this to int"
         #assert np.all(np.sum(spin1, axis = -1) == 1), "spin1 is not properly normalized"
         #assert np.all(np.sum(spin2, axis = -1) == 1), "spin2 is not properly normalized"
-        result = 1
-        for i in range(self.L1):
-            for j in range(self.L2):
-                result = result * (np.sum([spin1[i, j, k]*spin2[i, j, k] for k in range(2)]))
+        # Element-wise multiplication and summation
+        dot_product = jnp.sum(spin1 * spin2, axis=-1)
+        result = jnp.prod(dot_product)
+        
         return result
-    
 
 
 if __name__ == "__main__":
