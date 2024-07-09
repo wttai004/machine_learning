@@ -46,6 +46,7 @@ def test_J1():
     assert abs(J1_Op.vdot(spin2, spin2) - 3) < 1e-5, f"Flipping a middle spin has wrong energy: {J1_Op.vdot(spin2, spin2)}"
 
 def test_h():
+    print("Testing h Hamiltonian on 2x1 lattice...")
     model = Model(4,4)
     Ham = set_h_Hamiltonian(model, h = 1)
     #Ham += set_J1_Hamiltonian(model, J = 1)
@@ -59,43 +60,52 @@ def test_h():
     #print(f"Flipping a spin in s Hamiltonian gives: <spin1|H|spin2>={Ham.vdot(spin1, spin1)}")
     assert abs(Ham.vdot(spin1, spin1) - 0.5*model.L1*model.L2 + 2) < 1e-5, f"Flipping two spin has wrong energy: {Ham.vdot(spin1, spin1)}"
 
+def test_SzSz():
+    print("Testing SzSz expectation value...")
+    model = Model(2,2)
+    rbm = RBM(model)
+    average_expectations = [rbm.expectation_value(SzSz_(0,0,0,1,model), np.array([[[1, 0], [0, 1]], [[0, 1], [1, 0]]])) for _ in range(40)]
+    #print(f"The average expectation <SzSz|ud__|SzSz> is {np.mean(average_expectations)} with standard deviation {np.std(average_expectations)}")
+    assert abs(np.mean(average_expectations) + 0.25) < 1e-5, f"Triplet state (up, down) has wrong expectation: {np.mean(average_expectations)}"
+    average_expectations = [rbm.expectation_value(SzSz_(0,0,0,1,model), np.array([[[0, 1], [0, 1]], [[0, 1], [1, 0]]])) for _ in range(40)]
+    #print(f"The average expectation  <SzSz|dd__|SzSz> is {np.mean(average_expectations)} with standard deviation {np.std(average_expectations)}")
+    assert abs(np.mean(average_expectations) - 0.25) < 1e-5, f"Triplet state (down, down) has wrong expectation: {np.mean(average_expectations)}"
+    
+    model = Model(2,2)
+    rbm = RBM(model, seed = 42)
+    weight = 2
+    rbm.set_evaluate_function(rbm.evaluate_function_dummy_two_site(2))
+    batch = rbm.create_batch(400) #This uses evaluate_dummy, which gives 2/3 for spin up and 1/3 for spin down 
+    average_expectations = [rbm.expectation_value(SzSz_(0,0,0,1,model), batch[i]) for i in range(len(batch))]
+    #print(f"The average expectation for a 2:1 mixed state is {np.mean(average_expectations)} with standard deviation {np.std(average_expectations)}")
+    assert abs(np.mean(average_expectations) - (0.25 * weight**2 - 0.25)/(weight**2 + 1)) < 4*np.std(average_expectations)/np.sqrt(400), f"Mixed state has wrong expectation: {np.mean(average_expectations)}"
+    # rbm = RBM(model)
+    # rbm.set_evaluate_function(rbm.evaluate_function_dummy_two_site(20))
+    # batch = rbm.create_batch(200) #This uses evaluate_dummy, which gives 2/3 for spin up and 1/3 for spin down 
+    # average_expectations = [rbm.expectation_value(SzSz_(0,0,0,1,model), batch[i]) for i in range(len(batch))]
+    # print(f"The average expectation for a 2:1 mixed state is {np.mean(average_expectations)} with standard deviation {np.std(average_expectations)}")
+
+def test_expectation():
+    print("Testing implementation of expectation value...")
+    model = Model(2,3)
+    rbm = RBM(model, seed = 42)
+    N = 100
+    #create a batch
+    batch = rbm.create_batch(N)
+    # Implement a Hamiltonian
+    Ham =  set_J1_Hamiltonian(model, J = 1)#set_h_Hamiltonian(model, h = 4)
+    Szs = set_h_Hamiltonian(model, h = 1)
+    #print(f"the spin expectation value is {rbm.expectation_value_batch(Szs, batch)}")
+    def calculate_Sz_expectation_brute_force(spins):
+        return np.mean(np.sum(batch[:, :, :, 0]/2 - batch[:, :, :, 1]/2, axis=(1, 2)))
+    #print(f"the naive spin expectation value is {calculate_Sz_expectation_brute_force(batch)}")
+    assert abs(rbm.expectation_value_batch(Szs, batch) - calculate_Sz_expectation_brute_force(batch)) < 1e-5, f"Spin expectation value is wrong: {rbm.expectation_value_batch(Szs, batch)}"
+
 if __name__ == "__main__":
     test_J1()
     test_h()
     # Test the SzSz expectation value
-    test_SzSz = True
-    if test_SzSz == True:
-        model = Model(2,2)
-        rbm = RBM(model)
-        average_expectations = [rbm.expectation_value(SzSz_(0,0,0,1,model), np.array([[[1, 0], [0, 1]], [[0, 1], [1, 0]]])) for _ in range(40)]
-        print(f"The average expectation <SzSz|ud__|SzSz> is {np.mean(average_expectations)} with standard deviation {np.std(average_expectations)}")
-        average_expectations = [rbm.expectation_value(SzSz_(0,0,0,1,model), np.array([[[0, 1], [0, 1]], [[0, 1], [1, 0]]])) for _ in range(40)]
-        print(f"The average expectation  <SzSz|dd__|SzSz> is {np.mean(average_expectations)} with standard deviation {np.std(average_expectations)}")
-        rbm = RBM(model)
-        batch = rbm.create_batch(200) #This uses evaluate_dummy, which gives 2/3 for spin up and 1/3 for spin down 
-        average_expectations = [rbm.expectation_value(SzSz_(0,0,0,1,model), batch[i]) for i in range(len(batch))]
-        print(f"The average expectation for a 2:1 mixed state is {np.mean(average_expectations)})")
-
+    test_SzSz()
     # Test the model expectation
-    test_expectation = True
-    if test_expectation:
-        model = Model(2,3)
-        rbm = RBM(model)
-
-        N = 100
-
-        #create a batch
-        batch = rbm.create_batch(N)
-        # Implement a Hamiltonian
-
-        Ham =  set_J1_Hamiltonian(model, J = 1)#set_h_Hamiltonian(model, h = 4)
-
-        Szs = set_h_Hamiltonian(model, h = 1)
-
-        print(f"the spin expectation value is {rbm.expectation_value_batch(Szs, batch)}")
-
-        def calculate_Sz_expectation_brute_force(spins):
-            return  np.mean(np.sum(batch[:, :, :, 0]/2 - batch[:, :, :, 1]/2, axis=(1, 2)))
-
-        print(f"the naive spin expectation value is {calculate_Sz_expectation_brute_force(batch)}")
-        
+    test_expectation()
+    print("All tests passed!")

@@ -7,7 +7,7 @@ class RBM:
     """
     A reduced Boltzmann machine that implements the spin wavefunction based on the model class
     """
-    def __init__(self, model) -> None:
+    def __init__(self, model, seed = -1) -> None:
         self.model = model
         self.L1 = model.L1
         self.L2 = model.L2
@@ -17,6 +17,24 @@ class RBM:
         self.b = (np.random.random(self.M)-0.5) + 1j * (np.random.random(self.M)-0.5)#np.zeros(self.M)
         self.M = (np.random.random((self.M, self.L1 * self.L2))-0.5) + 1j * (np.random.random((self.M, self.L1 * self.L2))-0.5)#np.ones((self.M, self.L1 * self.L2))
 
+        self.evaluate_function = self.evaluate
+        if seed != -1:
+            np.random.seed(seed)
+
+    def set_evaluate_function(self, evaluate_function):
+        self.evaluate_function = evaluate_function
+
+    def evaluate_function_dummy(self, weight):
+        def evaluate_dummy(spin) -> float:
+            return weight if (spin[0, 0, 0] == 1) else 1
+        return evaluate_dummy
+    
+
+    def evaluate_function_dummy_two_site(self, weight):
+        def evaluate_dummy(spin) -> float:
+            return weight if (spin[0, 0, 0] == spin[0, 1, 0]) else 1
+        return evaluate_dummy
+    
     def get_weights(self):
         #Helper function, return the weights
         return self.a, self.b, self.M
@@ -26,7 +44,6 @@ class RBM:
         self.a = a
         self.b = b
         self.M = M
-
 
     def theta(self, spin)->float:
         """
@@ -44,20 +61,14 @@ class RBM:
         projected_spin = self.model.project_spin(spin)
         #print(self.M, projected_spin, np.prod(2 * np.cosh(self.b + np.dot(self.M, projected_spin))))
         return np.exp(np.dot(self.a, projected_spin)) * np.prod(2 * np.cosh(self.b + np.dot(self.M, projected_spin)))
-
-    def evaluate_dummy(self, spin) -> float:
-        #This is just for debugging use
-        assert spin.shape == (self.L1, self.L2, 2), f"Invalid spin shape {spin.shape}"
-        return 20 if (spin[0, 0, 0] == 1) else 1
-
     def metropolis_step(self, spin):
         """
         Perform a single Metropolis step
         """
         spin2 = self.model.flip_random_spin(spin)
         #print(self.evaluate(spin2),self.evaluate(spin))
-        p = min(1, (self.evaluate(spin2) / self.evaluate(spin))**2)
-        if random.random() < p:
+        p = min(1, (self.evaluate_function(spin2) / self.evaluate_function(spin))**2)
+        if np.random.random() < p:
             return spin2
         return spin
     
@@ -87,9 +98,7 @@ class RBM:
         spin2s = self.model.generate_local_spins(spin1, change = 2)
         result = 0
         for spin2 in spin2s:
-            #print(spin1, spin2)
-            #print(spin1, spin2, operator.vdot(spin1, spin2), self.evaluate_dummy(spin2), self.evaluate_dummy(spin1))
-            result += operator.vdot(spin1, spin2) * self.evaluate(spin2) / self.evaluate(spin1)
+            result += operator.vdot(spin1, spin2) * self.evaluate_function(spin2) / self.evaluate_function(spin1)
         return result
     
     def expectation_value_batch(self, operator, spins):
