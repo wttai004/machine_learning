@@ -2,6 +2,71 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import random
+from jax import jit, lax
+from functools import partial
+
+@jit
+def _project_spin(spin):
+    return jnp.array(spin[:,:,0].flatten(), dtype=jnp.float32) - 0.5
+
+def project_element(value):
+    return lax.cond(value == 0.5, 
+                    lambda _: jnp.array([1, 0]), 
+                    lambda _: jnp.array([0, 1]), 
+                    operand=None)
+
+
+@partial(jit, static_argnums=(1,2)) 
+def _unproject_spin(spin, L1, L2):
+    return jnp.array([[project_element(spin[i * L2 + j]) for j in range(L2)] for i in range(L1)])
+
+    #return jnp.array([[[1, 0] if spin[i * L2 + j] == 0.5 else [0, 1] for j in range(L2)] for i in range(L1)])
+
+@partial(jit, static_argnums=(0,1)) 
+def _get_random_spins(L1, L2, subkey):
+    return jax.random.choice(subkey, jnp.array([[1, 0], [0, 1]]), shape=(L1,L2))
+
+@jit
+def _flip_spin_at(spin, i, j):
+    def flip_if_one(spin, i, j):
+        spin = spin.at[i, j].set(jnp.array([1, 0]))
+        return spin
+
+    def flip_if_zero(spin, i, j):
+        spin = spin.at[i, j].set(jnp.array([0, 1]))
+        return spin
+    
+    condition = jnp.array_equal(spin[i, j], jnp.array([0, 1]))
+    spin = jax.lax.cond(condition, flip_if_one, flip_if_zero, spin, i, j)
+    
+    return spin
+
+#@partial(jit, static_argnums=(1,2,3,4)) 
+def _flip_random_spin(spin1, L1, L2, subkey1, subkey2):
+    spin2 = spin1.copy()
+    i = jax.random.randint(subkey1, (1,), 0, L1)[0]
+    j = jax.random.randint(subkey2, (1,), 0, L2)[0]
+    # Use JAX's conditional operations instead of assertions
+    valid_spin1 = jnp.logical_or(spin1[i, j, 0] == 0, spin1[i, j, 0] == 1)
+    valid_spin2 = jnp.logical_or(spin2[i, j, 0] == 0, spin2[i, j, 0] == 1)
+    
+    # Ensure the spins are valid before flipping
+    spin2 = jax.lax.cond(
+        valid_spin1 & valid_spin2,
+        lambda s: s.at[i, j].set([1, 0] if spin1[i, j, 0] == 0 else [0, 1]),
+        lambda s: s,
+        spin2
+    )
+    
+    return spin2
+    
+@jit
+def _vdot(spin1, spin2):
+    dot_product = jnp.sum(spin1 * spin2, axis=-1)
+    result = jnp.prod(dot_product)
+    
+    return result
+
 
 class Model:
     """
@@ -20,14 +85,16 @@ class Model:
 
         In lieu of the one-hot spin representation, each spin entry [1,0] and [0,1] is mapped to 1/2 and -1/2 respectively
         """
-        return jnp.array(spin[:,:,0].flatten(), dtype=jnp.float32) - 0.5
+        return _project_spin(spin)
+
 
     def unproject_spin(self, spin):
         """
         Helper function. Given the spins (L1*L2), project them back to a shape (L1, L2, 2)
         """
         assert spin.shape == (self.L1 * self.L2,), f"Invalid shape {spin.shape} for unproject_spin"
-        return jnp.array([[[1, 0] if spin[i * self.L2 + j] == 0.5 else [0, 1] for j in range(self.L2)] for i in range(self.L1)])
+        return _unproject_spin(spin, self.L1, self.L2)
+        #return jnp.array([[[1, 0] if spin[i * self.L2 + j] == 0.5 else [0, 1] for j in range(self.L2)] for i in range(self.L1)])
 
 
     def get_random_spins(self):
@@ -37,31 +104,36 @@ class Model:
         """
         #raise NotImplementedError("get_random_spins is not implemented properly")
         self.key, subkey = jax.random.split(self.key)
-        spins_flat = jax.random.choice(subkey, jnp.array([[1, 0], [0, 1]]), shape=(self.L1 * self.L2,))
-        spins = spins_flat.reshape(self.L1, self.L2, 2)
-        return spins
-    
-    def flip_random_spin(self, spin1):
-        """
-        return: a 2D array (L1, L2, 2) of spins with one random spin flipped
-        """
-        spin2 = spin1.copy()
-        self.key, subkey = jax.random.split(self.key)
-        i = jax.random.randint(subkey, (1,), 0, self.L1)[0]
-        self.key, subkey = jax.random.split(self.key)
-        j = jax.random.randint(subkey, (1,), 0, self.L2)[0]
-        i, j = random.randint(0, self.L1-1), random.randint(0, self.L2-1)
-        assert spin1[i,j,0] == 0 or spin1[i,j,0] == 1, f"Invalid spin value {spin1[i,j,0]}"
-        assert spin2[i,j,0] == 0 or spin2[i,j,0] == 1, f"Invalid spin value {spin2[i,j,0]}"
-        spin2 = spin2.at[i, j].set([1, 0] if spin1[i, j, 0] == 0 else [0, 1])
-        return spin2
+        return _get_random_spins(self.L1, self.L2, subkey)
+        #spins = jax.random.choice(subkey, jnp.array([[1, 0], [0, 1]]), shape=(self.L1,self.L2))
+        #spins_flat = jax.random.choice(subkey, jnp.array([[1, 0], [0, 1]]), shape=(self.L1 * self.L2))
+        #spins = spins_flat.reshape(self.L1, self.L2, 2)
+        #return spins
+
     
     def flip_spin_at(self, spin, i, j):
         """
         Flip the spin at position (i, j) in the input spin array
         """
+        #return _flip_spin_at(spin, i, j)
         new_spin = spin.at[i, j].set(jnp.array([1, 0]) if spin[i, j, 0] == 0 else jnp.array([0, 1]))
         return new_spin
+    
+    def flip_random_spin(self, spin1):
+        """
+        return: a 2D array (L1, L2, 2) of spins with one random spin flipped
+        """
+        self.key, subkey1, subkey2 = jax.random.split(self.key, 3)
+        #return _flip_random_spin(spin1, self.L1, self.L2, subkey1, subkey2)
+        spin2 = spin1.copy()
+        i = jax.random.randint(subkey1, (1,), 0, self.L1)[0]
+        j = jax.random.randint(subkey2, (1,), 0, self.L2)[0]
+        #i, j = random.randint(0, self.L1-1), random.randint(0, self.L2-1)
+        assert spin1[i,j,0] == 0 or spin1[i,j,0] == 1, f"Invalid spin value {spin1[i,j,0]}"
+        assert spin2[i,j,0] == 0 or spin2[i,j,0] == 1, f"Invalid spin value {spin2[i,j,0]}"
+        spin2 = spin2.at[i, j].set([1, 0] if spin1[i, j, 0] == 0 else [0, 1])
+        return spin2
+
     
     def generate_local_spins(self, spin, change=1):
         """
@@ -92,10 +164,11 @@ class Model:
         #assert np.all(np.sum(spin1, axis = -1) == 1), "spin1 is not properly normalized"
         #assert np.all(np.sum(spin2, axis = -1) == 1), "spin2 is not properly normalized"
         # Element-wise multiplication and summation
-        dot_product = jnp.sum(spin1 * spin2, axis=-1)
-        result = jnp.prod(dot_product)
+        return _vdot(spin1, spin2)
+        #dot_product = jnp.sum(spin1 * spin2, axis=-1)
+        #result = jnp.prod(dot_product)
         
-        return result
+        #return result
 
 
 if __name__ == "__main__":

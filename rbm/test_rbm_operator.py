@@ -89,7 +89,7 @@ def test_expectation():
     print("Testing implementation of expectation value...")
     model = Model(2,3)
     rbm = RBM(model, seed = 42)
-    N = 100
+    N = 10000
     #create a batch
     batch = rbm.create_batch(N)
     # Implement a Hamiltonian

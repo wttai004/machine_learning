@@ -2,8 +2,9 @@ import numpy as np
 import random
 from model import Model  # Assume the refactored code is saved in model.py
 
-def test_project_and_unproject_spin():
-    print("Testing project_spin and unproject_spin...")
+def test_project_and_unproject_spin(verbose = True):
+    if verbose:
+        print("Testing project_spin and unproject_spin...")
     model = Model(2, 2)
     spin = model.get_random_spins()
     assert spin.shape == (2, 2, 2), "Random spins have incorrect shape."
@@ -13,8 +14,9 @@ def test_project_and_unproject_spin():
     assert unprojected_spin.shape == (2, 2, 2), "Random spins have incorrect shape."
     assert np.array_equal(spin, unprojected_spin), "Unprojected spin does not match original spin."
 
-def test_get_random_spins():
-    print("Testing get_random_spins...")
+def test_get_random_spins(verbose = True):
+    if verbose:
+        print("Testing get_random_spins...")
     model = Model(4, 4)
     spin = model.get_random_spins()
     assert spin.shape == (4, 4, 2), "Random spins have incorrect shape."
@@ -22,8 +24,9 @@ def test_get_random_spins():
     spin2 = model.get_random_spins()
     assert not np.array_equal(spin, spin2), "Random spins are not random."
 
-def test_flip_random_spin():
-    print("Testing flip_random_spin...")
+def test_flip_random_spin(verbose = True):
+    if verbose:
+        print("Testing flip_random_spin...")
     model = Model(4, 4)
     spin = model.get_random_spins()
     flipped_spin = model.flip_random_spin(spin)
@@ -33,8 +36,9 @@ def test_flip_random_spin():
     assert np.any(spin != flipped_spin), "Flipped spin is identical to original spin."
     assert (spin != flipped_spin).sum() == 2, "More than one spin flipped."
 
-def test_generate_local_spins():
-    print("Testing generate_local_spins...")
+def test_generate_local_spins(verbose = True):
+    if verbose:
+        print("Testing generate_local_spins...")
     model = Model(3, 3)
     spin = model.get_random_spins()
     local_spins = model.generate_local_spins(spin, change=1)
@@ -46,8 +50,9 @@ def test_generate_local_spins():
     for spin in local_spins_change_2:
         assert np.all(np.all(spin == np.array([1, 0]), axis=-1) | np.all(spin == np.array([0, 1]), axis=-1)), "Local spins are not properly initialized."
 
-def test_vdot():
-    print("Testing vdot...")
+def test_vdot(verbose = True):
+    if verbose:
+        print("Testing vdot...")
     model = Model(2, 2)
     spin1 = model.get_random_spins()
     spin2 = spin1.copy()
