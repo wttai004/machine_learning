@@ -41,24 +41,19 @@ def _flip_spin_at(spin, i, j):
     
     return spin
 
-#@partial(jit, static_argnums=(1,2,3,4)) 
-def _flip_random_spin(spin1, L1, L2, subkey1, subkey2):
-    spin2 = spin1.copy()
-    i = jax.random.randint(subkey1, (1,), 0, L1)[0]
-    j = jax.random.randint(subkey2, (1,), 0, L2)[0]
-    # Use JAX's conditional operations instead of assertions
-    valid_spin1 = jnp.logical_or(spin1[i, j, 0] == 0, spin1[i, j, 0] == 1)
-    valid_spin2 = jnp.logical_or(spin2[i, j, 0] == 0, spin2[i, j, 0] == 1)
+
+@partial(jit, static_argnums=(1,2,3)) 
+def _generate_local_spins(spin, L1, L2, change = 1):
+    result = [spin]
+    result.extend([_flip_spin_at(spin, i, j) for i in range(L1) for j in range(L2)])
     
-    # Ensure the spins are valid before flipping
-    spin2 = jax.lax.cond(
-        valid_spin1 & valid_spin2,
-        lambda s: s.at[i, j].set([1, 0] if spin1[i, j, 0] == 0 else [0, 1]),
-        lambda s: s,
-        spin2
-    )
-    
-    return spin2
+    if change == 2:
+        result.extend([_flip_spin_at(_flip_spin_at(spin, i, j), k, l)
+                        for i in range(L1) for j in range(L2)
+                        for k in range(L1) for l in range(L2)
+                        if (k * L2 + l) > (i * L2 + j)])
+
+    return result
     
 @jit
 def _vdot(spin1, spin2):
@@ -94,8 +89,6 @@ class Model:
         """
         assert spin.shape == (self.L1 * self.L2,), f"Invalid shape {spin.shape} for unproject_spin"
         return _unproject_spin(spin, self.L1, self.L2)
-        #return jnp.array([[[1, 0] if spin[i * self.L2 + j] == 0.5 else [0, 1] for j in range(self.L2)] for i in range(self.L1)])
-
 
     def get_random_spins(self):
         """
@@ -105,34 +98,33 @@ class Model:
         #raise NotImplementedError("get_random_spins is not implemented properly")
         self.key, subkey = jax.random.split(self.key)
         return _get_random_spins(self.L1, self.L2, subkey)
-        #spins = jax.random.choice(subkey, jnp.array([[1, 0], [0, 1]]), shape=(self.L1,self.L2))
-        #spins_flat = jax.random.choice(subkey, jnp.array([[1, 0], [0, 1]]), shape=(self.L1 * self.L2))
-        #spins = spins_flat.reshape(self.L1, self.L2, 2)
-        #return spins
-
     
     def flip_spin_at(self, spin, i, j):
         """
         Flip the spin at position (i, j) in the input spin array
         """
-        #return _flip_spin_at(spin, i, j)
-        new_spin = spin.at[i, j].set(jnp.array([1, 0]) if spin[i, j, 0] == 0 else jnp.array([0, 1]))
-        return new_spin
+        return _flip_spin_at(spin, i, j)
     
     def flip_random_spin(self, spin1):
         """
         return: a 2D array (L1, L2, 2) of spins with one random spin flipped
         """
         self.key, subkey1, subkey2 = jax.random.split(self.key, 3)
-        #return _flip_random_spin(spin1, self.L1, self.L2, subkey1, subkey2)
         spin2 = spin1.copy()
         i = jax.random.randint(subkey1, (1,), 0, self.L1)[0]
         j = jax.random.randint(subkey2, (1,), 0, self.L2)[0]
-        #i, j = random.randint(0, self.L1-1), random.randint(0, self.L2-1)
-        assert spin1[i,j,0] == 0 or spin1[i,j,0] == 1, f"Invalid spin value {spin1[i,j,0]}"
-        assert spin2[i,j,0] == 0 or spin2[i,j,0] == 1, f"Invalid spin value {spin2[i,j,0]}"
-        spin2 = spin2.at[i, j].set([1, 0] if spin1[i, j, 0] == 0 else [0, 1])
-        return spin2
+        # Use JAX's conditional operations instead of assertions
+        return _flip_spin_at(spin2, i, j)
+
+        return _flip_random_spin(spin1, self.L1, self.L2, subkey1, subkey2)
+        # spin2 = spin1.copy()
+        # i = jax.random.randint(subkey1, (1,), 0, self.L1)[0]
+        # j = jax.random.randint(subkey2, (1,), 0, self.L2)[0]
+        # #i, j = random.randint(0, self.L1-1), random.randint(0, self.L2-1)
+        # assert spin1[i,j,0] == 0 or spin1[i,j,0] == 1, f"Invalid spin value {spin1[i,j,0]}"
+        # assert spin2[i,j,0] == 0 or spin2[i,j,0] == 1, f"Invalid spin value {spin2[i,j,0]}"
+        # spin2 = spin2.at[i, j].set([1, 0] if spin1[i, j, 0] == 0 else [0, 1])
+        # return spin2
 
     
     def generate_local_spins(self, spin, change=1):
@@ -142,16 +134,17 @@ class Model:
         Change: consider how much spins can be changed at maximum (currently only allows change = 1 or 2)
         """
         assert change == 1 or change == 2, f"Invalid change value {change}"
-        result = [spin]
-        result.extend([self.flip_spin_at(spin, i, j) for i in range(self.L1) for j in range(self.L2)])
+        return _generate_local_spins(spin, self.L1, self.L2, change)
+        # result = [spin]
+        # result.extend([self.flip_spin_at(spin, i, j) for i in range(self.L1) for j in range(self.L2)])
         
-        if change == 2:
-            result.extend([self.flip_spin_at(self.flip_spin_at(spin, i, j), k, l)
-                           for i in range(self.L1) for j in range(self.L2)
-                           for k in range(self.L1) for l in range(self.L2)
-                           if (k * self.L2 + l) > (i * self.L2 + j)])
+        # if change == 2:
+        #     result.extend([self.flip_spin_at(self.flip_spin_at(spin, i, j), k, l)
+        #                    for i in range(self.L1) for j in range(self.L2)
+        #                    for k in range(self.L1) for l in range(self.L2)
+        #                    if (k * self.L2 + l) > (i * self.L2 + j)])
 
-        return result
+        # return result
 
 
 
