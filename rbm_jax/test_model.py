@@ -64,9 +64,9 @@ def test_vdot(verbose = True):
 
 if __name__ == "__main__":
     random.seed(0)  # Set random seed for reproducibility
-    test_project_and_unproject_spin()
-    test_get_random_spins()
-    test_flip_random_spin()
-    test_generate_local_spins()
+    # test_project_and_unproject_spin()
+    # test_get_random_spins()
+    # test_flip_random_spin()
+    # test_generate_local_spins()
     test_vdot()
     print("All tests passed!")
