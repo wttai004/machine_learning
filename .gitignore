@@ -3,8 +3,9 @@ Archive/
 
 #pycache files
 *.pyc
-_pycache_/
-__pycache__/
+
+#pycache folders
+**/__pycache__/
 
 # Log
 log/
