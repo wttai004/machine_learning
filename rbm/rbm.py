@@ -2,7 +2,7 @@ from model import Model
 import numpy as np
 import random
 from numpy import tanh
-
+from itertools import product
 class RBM:
     """
     A reduced Boltzmann machine that implements the spin wavefunction based on the model class
@@ -61,6 +61,7 @@ class RBM:
         projected_spin = self.model.project_spin(spin)
         #print(self.M, projected_spin, np.prod(2 * np.cosh(self.b + np.dot(self.M, projected_spin))))
         return np.exp(np.dot(self.a, projected_spin)) * np.prod(2 * np.cosh(self.b + np.dot(self.M, projected_spin)))
+    
     def metropolis_step(self, spin):
         """
         Perform a single Metropolis step
@@ -88,6 +89,31 @@ class RBM:
             if i % skip == 0:
                 result_array[i//skip] = current_spins
         return result_array
+    
+    def create_batch_complete(self):
+        """
+        Create a batch of all possible spins (for debugging purpose)
+        """
+        L1 = self.L1
+        L2 = self.L2
+        total_spins = L1 * L2
+        # Generate all possible binary configurations for total_spins
+        binary_configs = product([0, 1], repeat=total_spins)
+        
+        # Map each binary configuration to the corresponding spin configuration
+        spin_configurations = []
+        for config in binary_configs:
+            spin_array = np.zeros((L1, L2, 2), dtype=int)
+            for i in range(L1):
+                for j in range(L2):
+                    index = i * L2 + j
+                    if config[index] == 0:
+                        spin_array[i, j] = (1, 0)
+                    else:
+                        spin_array[i, j] = (0, 1)
+            spin_configurations.append(spin_array)
+        
+        return spin_configurations
 
     def expectation_value(self, operator, spin):
         """
@@ -110,6 +136,19 @@ class RBM:
             result += self.expectation_value(operator, spin)
         return result / len(spins)
         
+    def expectation_value_exact(self, operator):
+        """
+        Evaluate the expectation value of an operator for all possible spin configurations
+        Warning: Exponential scaling to system size
+        """
+        spins = self.create_batch_complete()
+        result = 0
+        normalization = 0
+        for spin in spins:
+            result += self.expectation_value(operator, spin) * self.evaluate_function(spin)**2
+            normalization += self.evaluate_function(spin)**2
+        return result/ normalization
+
     def expectation_value_with_new_batch(self, operator, N = 10, burn_in = 100, skip = 10):
         """
         Evaluate the expectation value of an operator for a batch of spin configurations
@@ -153,7 +192,7 @@ class RBM:
         # Correlation matrix
         Skk = Oj_Ok - mean_Oj_Ok
 
-        Skk_reg = Skk + self.decay(1) * np.eye(Skk.shape[0])
+        Skk_reg = Skk + self.decay(p) * np.diag(np.diagonal(Skk)) #np.eye(Skk.shape[0])
         Skk_inv = np.linalg.inv(Skk_reg)
 
         delta_as = np.mean(Es[:, np.newaxis] * sigmas, axis = 0) - np.mean(Es) * np.mean(sigmas, axis = 0)

@@ -1,21 +1,41 @@
 import jax
 import jax.numpy as jnp
+from jax.tree_util import register_pytree_node_class
 
-# Define a pytree with nested structures
-pytree = {'a': jnp.array([1.0, 2.0, 3.0]), 'b': [jnp.array([4.0, 5.0]), (jnp.array([6.0]), jnp.array([7.0]))]}
+@register_pytree_node_class
+class MyPytreeClass:
+    def __init__(self, a, b, func):
+        self.a = a  # Leaf
+        self.b = b  # Leaf
+        self.func = func  # Function object
 
-# Apply a function to all leaves of the pytree
-def add_one(x):
-    return x + 1
+    def __repr__(self):
+        return f"MyPytreeClass(a={self.a}, b={self.b}, func={self.func})"
 
-new_pytree = jax.tree_map(add_one, pytree)
-print(new_pytree)
+    def _tree_flatten(self):
+        # Leaves are the values that we want to be treated as JAX arrays
+        leaves = (self.a, self.b)
+        # Aux data includes the function object
+        aux_data = (self.func,)
+        return leaves, aux_data
 
-# Flatten the pytree into a list of leaves and a treedef
-leaves, treedef = jax.tree_flatten(pytree)
-print(leaves)
-print(treedef)
+    @classmethod
+    def _tree_unflatten(cls, aux_data, leaves):
+        func, = aux_data  # Unpack the function object
+        return cls(*leaves, func)
 
-# Unflatten the list of leaves back into the original structure
-restored_pytree = jax.tree_unflatten(treedef, leaves)
-print(restored_pytree)
+# Example function
+def example_func(x):
+    return x ** 2
+
+# Example usage
+obj = MyPytreeClass(a=jnp.array([1, 2, 3]), b=jnp.array([4, 5, 6]), func=example_func)
+flattened, aux_data = obj._tree_flatten()
+print("Flattened:", flattened)
+print("Aux data:", aux_data)
+
+reconstructed = MyPytreeClass._tree_unflatten(aux_data, flattened)
+print("Reconstructed:", reconstructed)
+
+# Using the function
+print("Function output:", reconstructed.func(3))

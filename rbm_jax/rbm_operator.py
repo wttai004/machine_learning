@@ -1,7 +1,11 @@
-from model import Model
+from model import Model, _vdot
 from rbm import RBM
-import numpy as np
+import jax
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
 import random
+from jax import jit, lax, tree_util
+from functools import partial
 
 class Operator:
     def __init__(self, model: Model) -> None:
@@ -12,73 +16,73 @@ class Operator:
         self.twositeoperators = []
 
     def generate_identity(self):
-        result = np.zeros((self.L1, self.L2, 2, 2), dtype = complex)
-        #adding the identity operators
+        result = jnp.zeros((self.L1, self.L2, 2, 2), dtype=jnp.complex64)
+        # adding the identity operators
         for i in range(self.L1):
             for j in range(self.L2):
-                result[i, j, 0, 0] = 1  
-                result[i, j, 1, 1] = 1
+                result = result.at[i, j, 0, 0].set(1)
+                result = result.at[i, j, 1, 1].set(1)
         return result
 
-    def add_Sx(self, i, j, J = 1):
+    def add_Sx(self, i, j, J=1):
         operator = self.generate_identity()
-        operator[i, j, 0, 0] = 0
-        operator[i, j, 1, 1] = 0
-        operator[i, j, 0, 1] = 1/2 * J 
-        operator[i, j, 1, 0] =  1/2 * J
-        self.onesiteoperators.append(operator)
-    
-    def add_Sy(self, i, j, J = 1):
-        operator = self.generate_identity()
-        operator[i, j, 0, 0] = 0
-        operator[i, j, 1, 1] = 0
-        operator[i, j, 0, 1] = -1j * 1/2 * J
-        operator[i, j, 1, 0] =  1j * 1/2 * J
+        operator = operator.at[i, j, 0, 0].set(0)
+        operator = operator.at[i, j, 1, 1].set(0)
+        operator = operator.at[i, j, 0, 1].set(1/2 * J)
+        operator = operator.at[i, j, 1, 0].set(1/2 * J)
         self.onesiteoperators.append(operator)
 
-    def add_Sz(self, i, j, J = 1):
+    def add_Sy(self, i, j, J=1):
         operator = self.generate_identity()
-        operator[i, j, 0, 0] = 1/2 * J
-        operator[i, j, 1, 1] = -1/2 * J
+        operator = operator.at[i, j, 0, 0].set(0)
+        operator = operator.at[i, j, 1, 1].set(0)
+        operator = operator.at[i, j, 0, 1].set(-1j * 1/2 * J)
+        operator = operator.at[i, j, 1, 0].set(1j * 1/2 * J)
         self.onesiteoperators.append(operator)
 
-    def add_SzSz(self, i1, j1, i2, j2, J = 1):
+    def add_Sz(self, i, j, J=1):
+        operator = self.generate_identity()
+        operator = operator.at[i, j, 0, 0].set(1/2 * J)
+        operator = operator.at[i, j, 1, 1].set(-1/2 * J)
+        self.onesiteoperators.append(operator)
+
+    def add_SzSz(self, i1, j1, i2, j2, J=1):
         result = []
         operator = self.generate_identity()
-        operator[i1, j1, 0, 0] = 1/2 * J
-        operator[i1, j1, 1, 1] = -1/2 * J
+        operator = operator.at[i1, j1, 0, 0].set(1/2 * J)
+        operator = operator.at[i1, j1, 1, 1].set(-1/2 * J)
         result.append(operator)
         operator = self.generate_identity()
-        operator[i2, j2, 0, 0] = 1/2 * J
-        operator[i2, j2, 1, 1] = -1/2 * J
+        operator = operator.at[i2, j2, 0, 0].set(1/2 * J)
+        operator = operator.at[i2, j2, 1, 1].set(-1/2 * J)
         result.append(operator)
         self.twositeoperators.append(result)
 
-    def add_SpSm(self, i1, j1, i2, j2, J = 1):
+    def add_SpSm(self, i1, j1, i2, j2, J=1):
         result = []
         operator = self.generate_identity()
-        operator[i1, j1, 0, 0] = 0
-        operator[i1, j1, 1, 1] = 0
-        operator[i1, j1, 0, 1] = 1/2 * J
+        operator = operator.at[i1, j1, 0, 0].set(0)
+        operator = operator.at[i1, j1, 1, 1].set(0)
+        operator = operator.at[i1, j1, 0, 1].set(1/2 * J)
         result.append(operator)
         operator = self.generate_identity()
-        operator[i2, j2, 0, 0] = 0
-        operator[i2, j2, 1, 1] = 0
-        operator[i2, j2, 1, 0] = J
+        operator = operator.at[i2, j2, 0, 0].set(0)
+        operator = operator.at[i2, j2, 1, 1].set(0)
+        operator = operator.at[i2, j2, 1, 0].set(J)
         result.append(operator)
         self.twositeoperators.append(result)
 
-    def add_SmSp(self, i1, j1, i2, j2, J = 1):
+    def add_SmSp(self, i1, j1, i2, j2, J=1):
         result = []
         operator = self.generate_identity()
-        operator[i1, j1, 0, 0] = 0
-        operator[i1, j1, 1, 1] = 0
-        operator[i1, j1, 1, 0] = 1/2 * J
+        operator = operator.at[i1, j1, 0, 0].set(0)
+        operator = operator.at[i1, j1, 1, 1].set(0)
+        operator = operator.at[i1, j1, 1, 0].set(1/2 * J)
         result.append(operator)
         operator = self.generate_identity()
-        operator[i2, j2, 0, 0] = 0
-        operator[i2, j2, 1, 1] = 0
-        operator[i2, j2, 0, 1] = J
+        operator = operator.at[i2, j2, 0, 0].set(0)
+        operator = operator.at[i2, j2, 1, 1].set(0)
+        operator = operator.at[i2, j2, 0, 1].set(J)
         result.append(operator)
         self.twositeoperators.append(result)
 
@@ -102,29 +106,21 @@ class Operator:
 
     def vdot(self, spin1, spin2):
         #return the vector product between the operator and the spin
-        assert spin1.dtype == int and spin2.dtype == int, f"Hdot cannot handle spins of type {spin1.dtype}. Please convert this to int"
-        assert np.all(np.sum(spin1, axis = -1) == 1), "spin1 is not properly normalized"
-        assert np.all(np.sum(spin2, axis = -1) == 1), f"spin2 is not properly normalized for {spin2}"
+        #assert spin1.dtype == int and spin2.dtype == int, f"Hdot cannot handle spins of type {spin1.dtype}. Please convert this to int"
+        #assert jnp.all(jnp.sum(spin1, axis = -1) == 1), "spin1 is not properly normalized"
+        #assert jnp.all(jnp.sum(spin2, axis = -1) == 1), f"spin2 is not properly normalized for {spin2}"
         
-        onesiteresults = [
-            self.model.vdot(spin1,  np.einsum("ijkl, ijk->ijl", operator, spin2))
-            for operator in self.onesiteoperators
-        ]
-        onesiteresult = np.sum(onesiteresults)
+        onesiteresult = 0
+        for operator in self.onesiteoperators:
+            onesiteresult += self.model.vdot(spin1, jnp.einsum("ijkl, ijk->ijl", operator, spin2))
         twositeresult = 0
-
-        def two_site_einsum(operator_combo, spin):
+        for operator_combo in self.twositeoperators:
+            temp = jnp.copy(spin2)
             for operator in operator_combo:
-                spin = np.einsum("ijkl, ijk->ijl", operator, spin)
-            return spin
-
-        twositeresults = [            
-            self.model.vdot(spin1, two_site_einsum(operator_combo, spin2))
-            for operator_combo in self.twositeoperators
-        ]
-        twositeresult = np.sum(twositeresults)
+                temp = jnp.einsum("ijkl, ijk->ijl", operator, temp)
+            #print(spin1, temp)
+            twositeresult += self.model.vdot(spin1, temp)
         return onesiteresult + twositeresult
-    
    
 def Sx_(i, j, model, J = 1):
     """

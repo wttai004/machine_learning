@@ -41,7 +41,7 @@ class Model:
         return: a 2D array (L1, L2, 2) of spins with one random spin flipped
         """
         spin2 = spin1.copy()
-        i, j = np.random.randint(0, self.L1-1), np.random.randint(0, self.L2-1)
+        i, j = np.random.randint(0, self.L1), np.random.randint(0, self.L2)
         assert spin1[i,j,0] == 0 or spin1[i,j,0] == 1, f"Invalid spin value {spin1[i,j,0]}"
         assert spin2[i,j,0] == 0 or spin2[i,j,0] == 1, f"Invalid spin value {spin2[i,j,0]}"
         spin2[i, j] = [1, 0] if spin1[i, j, 0] == 0 else [0, 1]
