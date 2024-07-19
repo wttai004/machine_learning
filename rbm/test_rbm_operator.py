@@ -45,6 +45,17 @@ def test_J1():
     #print(f"Energy is now: <spin2|H|spin2>={J1_Op.vdot(spin2, spin2)}")
     assert abs(J1_Op.vdot(spin2, spin2) - 3) < 1e-5, f"Flipping a middle spin has wrong energy: {J1_Op.vdot(spin2, spin2)}"
 
+def test_neel():
+    # Test the J1 Hamiltonian on 4x4 lattice
+    print("Testing J1 Hamiltonian to see if this reproduces the Neel ground state...")
+    model = Model(4, 4)
+    spin1 = np.array([[[1,0] if (i + j) % 2 == 0 else [0,1] for i in range(model.L2)] for j in range(model.L1)])
+    #spin2 = np.array([[[1,0] for _ in range(model.L2)] for _ in range(model.L1)])
+    J1_Op = set_J1_Hamiltonian(model, J = 4)
+    print(f"J1 Hamiltonian gives: <spin1|H|spin1>={J1_Op.vdot(spin1, spin1)}")
+    spin2 = np.array([[[0,1] if (i + j) % 2 == 0 else [1,0] for i in range(model.L2)] for j in range(model.L1)])
+    print(f"J1 Hamiltonian gives: <spin2|H|spin1>={J1_Op.vdot(spin2, spin1)}")
+
 def test_h():
     print("Testing h Hamiltonian on 2x1 lattice...")
     model = Model(4,4)
@@ -102,10 +113,11 @@ def test_expectation():
     assert abs(rbm.expectation_value_batch(Szs, batch) - calculate_Sz_expectation_brute_force(batch)) < 1e-5, f"Spin expectation value is wrong: {rbm.expectation_value_batch(Szs, batch)}"
 
 if __name__ == "__main__":
-    test_J1()
-    test_h()
-    # Test the SzSz expectation value
-    test_SzSz()
-    # Test the model expectation
-    test_expectation()
-    print("All tests passed!")
+    test_neel()
+    # test_J1()
+    # test_h()
+    # # Test the SzSz expectation value
+    # test_SzSz()
+    # # Test the model expectation
+    # test_expectation()
+    # print("All tests passed!")

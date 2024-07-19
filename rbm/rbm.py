@@ -169,7 +169,7 @@ class RBM:
         return result / len(spins)
     
     def decay(self, b):
-        return max(100*0.9**b, 0.01)
+        return max(100*0.9**b, 0.0001)
     
     def get_deltas(self, Ham, p, N = 100):
         #create a batch
@@ -193,6 +193,7 @@ class RBM:
         Skk = Oj_Ok - mean_Oj_Ok
 
         Skk_reg = Skk + self.decay(p) * np.diag(np.diagonal(Skk)) #np.eye(Skk.shape[0])
+        print(self.decay(p) * np.diag(np.diagonal(Skk)))
         Skk_inv = np.linalg.inv(Skk_reg)
 
         delta_as = np.mean(Es[:, np.newaxis] * sigmas, axis = 0) - np.mean(Es) * np.mean(sigmas, axis = 0)
@@ -225,5 +226,6 @@ class RBM:
             if verbose:
                 batch = self.create_batch(N)
                 print("Current energy:", self.expectation_value_batch(Ham, batch))
-                print("Current Sz:", self.calculate_Sz_expectation_brute_force(batch))
-        return self.a, self.b, self.M
+                #print("Current Sz:", self.calculate_Sz_expectation_brute_force(batch))
+        print("Training done")
+        #return self.a, self.b, self.M
