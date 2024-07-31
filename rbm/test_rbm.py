@@ -37,15 +37,16 @@ def test_expectation():
 
     N = 500
     test = [rbm.expectation_value_batch(Ham, rbm.create_batch(N)) for _ in range(5)]
-    print(f"The average energy is {np.mean(test)} with standard deviation {np.std(test)}")
+    print(f"The average energy for batch size N = {N} is {np.mean(test)} with standard deviation {np.std(test)}")
     assert np.abs(np.mean(test) - exact_value) < 4 * np.std(test), "The energy is not within 4 standard deviations of the exact value"
 
     N = 5000
     test = [rbm.expectation_value_batch(Ham,  rbm.create_batch(N)) for _ in range(5)]
-    print(f"The average energy is {np.mean(test)} with standard deviation {np.std(test)}")
+    print(f"The average energy for batch size N = {N} is {np.mean(test)} with standard deviation {np.std(test)}")
     assert np.abs(np.mean(test) - exact_value) < 4 * np.std(test), "The energy is not within 4 standard deviations of the exact value"
 
 
 if __name__ == "__main__":
     np.random.seed(0)  # Set random seed for reproducibility
     test_batch()
+    test_expectation()

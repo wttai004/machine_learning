@@ -21,3 +21,5 @@ def test_h_hamiltonian(h):
     #print(f"the updated energy is {rbm.expectation_value_batch(Ham, batch)}")
     print(f"The spin distributions are {np.average(batch, axis=0)}")
 
+if __name__ == "__main__":
+    test_h_hamiltonian(4)

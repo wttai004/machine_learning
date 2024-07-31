@@ -169,7 +169,7 @@ class RBM:
         return result / len(spins)
     
     def decay(self, b):
-        return max(100*0.9**b, 0.0001)
+        return max(100*0.9**b, 0.01)
     
     def get_deltas(self, Ham, p, N = 100):
         #create a batch
@@ -192,8 +192,7 @@ class RBM:
         # Correlation matrix
         Skk = Oj_Ok - mean_Oj_Ok
 
-        Skk_reg = Skk + self.decay(p) * np.diag(np.diagonal(Skk)) #np.eye(Skk.shape[0])
-        print(self.decay(p) * np.diag(np.diagonal(Skk)))
+        Skk_reg = Skk + self.decay(p) * np.diag(np.diagonal(Skk)) 
         Skk_inv = np.linalg.inv(Skk_reg)
 
         delta_as = np.mean(Es[:, np.newaxis] * sigmas, axis = 0) - np.mean(Es) * np.mean(sigmas, axis = 0)
