@@ -192,7 +192,7 @@ class RBM:
         # Correlation matrix
         Skk = Oj_Ok - mean_Oj_Ok
 
-        Skk_reg = Skk + self.decay(p) * np.diag(np.diagonal(Skk)) 
+        Skk_reg = Skk + self.decay(p) * np.eye(Skk.shape[0])#np.diag(np.diagonal(Skk)) 
         Skk_inv = np.linalg.inv(Skk_reg)
 
         delta_as = np.mean(Es[:, np.newaxis] * sigmas, axis = 0) - np.mean(Es) * np.mean(sigmas, axis = 0)
@@ -219,12 +219,13 @@ class RBM:
         #Helper function
         return  np.mean(np.sum(batch[:, :, :, 0]/2 - batch[:, :, :, 1]/2, axis=(1, 2)))
 
-    def train(self, Ham, gamma, operator = 0, N = 100, n_iter = 10, verbose = True):
+    def train(self, Ham, gamma, decay_gamma = 0.99, operator = 0, N = 100, n_iter = 10, verbose = True):
         for p in range(n_iter):
-            self.update_weights(Ham, gamma, p, N = N, verbose = verbose)
+            self.update_weights(Ham, gamma * decay_gamma**p, p, N = N, verbose = verbose)
             if verbose:
                 batch = self.create_batch(N)
                 print("Current energy:", self.expectation_value_batch(Ham, batch))
+                print(f"The spin distributions are {np.average(batch, axis=0)}")
                 #print("Current Sz:", self.calculate_Sz_expectation_brute_force(batch))
         print("Training done")
         #return self.a, self.b, self.M
