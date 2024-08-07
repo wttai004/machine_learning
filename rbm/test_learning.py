@@ -15,7 +15,7 @@ def test_h_hamiltonian(h):
     rbm = RBM(model)
     Ham =  set_h_Hamiltonian(model, h = 4)
     gamma = 1
-    rbm.train(Ham, gamma, N = 1000, n_iter = 20)
+    rbm.train(Ham, gamma, N = 1000, n_iter = 40)
 
     batch = rbm.create_batch(N)
     #print(f"the updated energy is {rbm.expectation_value_batch(Ham, batch)}")
@@ -27,8 +27,8 @@ def test_J1_hamiltonian(J1):
     model = Model(2,4)
     rbm = RBM(model)
     Ham =  set_J1_Hamiltonian(model, J = 4)
-    gamma = 1
-    rbm.train(Ham, gamma, N = 1000, n_iter = 40)
+    gamma = 0.01
+    rbm.train(Ham, gamma, N = 1000, n_iter = 40, method = "sr")
 
     batch = rbm.create_batch(N)
     #print(f"the updated energy is {rbm.expectation_value_batch(Ham, batch)}")
@@ -37,4 +37,4 @@ def test_J1_hamiltonian(J1):
 
 if __name__ == "__main__":
     #test_h_hamiltonian(4)
-    test_J1_hamiltonian(4)
+    test_J1_hamiltonian(1)

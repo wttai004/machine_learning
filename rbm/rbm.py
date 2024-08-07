@@ -3,6 +3,7 @@ import numpy as np
 import random
 from numpy import tanh
 from itertools import product
+from tqdm import tqdm
 class RBM:
     """
     A reduced Boltzmann machine that implements the spin wavefunction based on the model class
@@ -60,6 +61,8 @@ class RBM:
         assert spin.shape == (self.L1, self.L2, 2), f"Invalid spin shape {spin.shape}"
         projected_spin = self.model.project_spin(spin)
         #print(self.M, projected_spin, np.prod(2 * np.cosh(self.b + np.dot(self.M, projected_spin))))
+        result = np.exp(np.dot(self.a, projected_spin)) * np.prod(2 * np.cosh(self.b + np.dot(self.M, projected_spin)))
+        assert np.isreal(result), f"Invalid result {result}"
         return np.exp(np.dot(self.a, projected_spin)) * np.prod(2 * np.cosh(self.b + np.dot(self.M, projected_spin)))
     
     def metropolis_step(self, spin):
@@ -171,7 +174,7 @@ class RBM:
     def decay(self, b):
         return max(100*0.9**b, 0.01)
     
-    def get_deltas(self, Ham, p, N = 100):
+    def get_deltas_sr(self, Ham, p, N = 100):
         #create a batch
         batch = self.create_batch(N)
         # Implement a Hamiltonian
@@ -192,7 +195,7 @@ class RBM:
         # Correlation matrix
         Skk = Oj_Ok - mean_Oj_Ok
 
-        Skk_reg = Skk + self.decay(p) * np.eye(Skk.shape[0])#np.diag(np.diagonal(Skk)) 
+        Skk_reg = Skk + 0.001 * np.eye(Skk.shape[0]) # self.decay(p) * np.eye(Skk.shape[0])
         Skk_inv = np.linalg.inv(Skk_reg)
 
         delta_as = np.mean(Es[:, np.newaxis] * sigmas, axis = 0) - np.mean(Es) * np.mean(sigmas, axis = 0)
@@ -206,11 +209,32 @@ class RBM:
         delta_bs_reg = deltas_reg[sigmas.shape[1]:sigmas.shape[1] + tanhs.shape[1]]
         delta_Ws_reg = deltas_reg[sigmas.shape[1] + tanhs.shape[1]:].reshape(tanhs.shape[1], sigmas.shape[1])
         return delta_as_reg, delta_bs_reg, delta_Ws_reg
+
+    def get_deltas_sgd(self, Ham, p, N = 100):
+        #create a batch
+        batch = self.create_batch(N)
+        # Implement a Hamiltonian
+        Es = np.array([self.expectation_value(Ham, spin) for spin in batch]) 
+        tanhs =  np.array([tanh(self.theta(spin)) for spin in batch])
+        sigmas = np.array([self.model.project_spin(spin) for spin in batch])
+
+        delta_as = np.mean(Es[:, np.newaxis] * sigmas, axis = 0) - np.mean(Es) * np.mean(sigmas, axis = 0)
+        delta_bs = np.mean(Es[:, np.newaxis] * tanhs, axis = 0) - np.mean(Es) * np.mean(tanhs, axis = 0)
+        delta_Ws = np.mean(Es[:, np.newaxis, np.newaxis] * tanhs[:, :, np.newaxis] * sigmas[:, np.newaxis, :], axis = 0) - np.mean(Es) * np.mean(tanhs[:, :, np.newaxis] * sigmas[:, np.newaxis, :], axis = 0)
+
+        deltas = np.concatenate([delta_as, delta_bs, delta_Ws.reshape(-1)], axis=0)
+
+        return delta_as, delta_bs, delta_Ws#delta_as_reg, delta_bs_reg, delta_Ws_reg
     
-    def update_weights(self, Ham, gamma, p, N = 100, verbose = True):
+
+    def update_weights(self, Ham, gamma, p, N = 100, verbose = True, method = "sgd"):
         if verbose:
             print(f"Updating weights at iteration {p}")
-        delta_as, delta_bs, delta_Ws = self.get_deltas(Ham, p)
+            print(f"Current magnitude of the weights are {np.linalg.norm(self.a)}, {np.linalg.norm(self.b)}, {np.linalg.norm(self.M)}")
+        if method == "sgd":
+            delta_as, delta_bs, delta_Ws = self.get_deltas_sgd(Ham, p)
+        elif method == "sr":
+            delta_as, delta_bs, delta_Ws = self.get_deltas_sr(Ham, p)
         self.a -= gamma * delta_as
         self.b -= gamma * delta_bs
         self.M -= gamma * delta_Ws
@@ -219,9 +243,9 @@ class RBM:
         #Helper function
         return  np.mean(np.sum(batch[:, :, :, 0]/2 - batch[:, :, :, 1]/2, axis=(1, 2)))
 
-    def train(self, Ham, gamma, decay_gamma = 0.99, operator = 0, N = 100, n_iter = 10, verbose = True):
-        for p in range(n_iter):
-            self.update_weights(Ham, gamma * decay_gamma**p, p, N = N, verbose = verbose)
+    def train(self, Ham, gamma, decay_gamma = 0.99, operator = 0, N = 100, n_iter = 10, verbose = True, method = "sr"):
+        for p in tqdm(range(n_iter), desc = "Training progress"):
+            self.update_weights(Ham, gamma * decay_gamma**p, p, N = N, verbose = verbose, method = "sr")
             if verbose:
                 batch = self.create_batch(N)
                 print("Current energy:", self.expectation_value_batch(Ham, batch))

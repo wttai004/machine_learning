@@ -2,7 +2,7 @@ import numpy as np
 import netket as nk
 
 # Define the system size
-L = 2
+L = 4
 graph = nk.graph.Hypercube(length=L, n_dim=2, pbc=False)
 
 # Define the Hilbert space based on this graph
@@ -38,7 +38,7 @@ def compute_expectation_values(hfield):
     return exact_gs_energy, Sz_expectation, SzSz_expectation
 
 # Range of magnetic field values to explore
-hfield_values = np.linspace(-10, 10, 1011)
+hfield_values = np.linspace(-2, 2, 11)
 expectation_values = []
 
 # Loop over magnetic field values and compute expectation values
