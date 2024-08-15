@@ -51,10 +51,12 @@ def test_neel():
     model = Model(4, 4)
     spin1 = np.array([[[1,0] if (i + j) % 2 == 0 else [0,1] for i in range(model.L2)] for j in range(model.L1)])
     #spin2 = np.array([[[1,0] for _ in range(model.L2)] for _ in range(model.L1)])
-    J1_Op = set_J1_Hamiltonian(model, J = 4)
+    J1_Op = set_J1_Hamiltonian(model, J = 1)
     print(f"J1 Hamiltonian gives: <spin1|H|spin1>={J1_Op.vdot(spin1, spin1)}")
+    assert abs(J1_Op.vdot(spin1, spin1) + 6) < 1e-5, f"Neel state has wrong energy: {J1_Op.vdot(spin1, spin1)}"
     spin2 = np.array([[[0,1] if (i + j) % 2 == 0 else [1,0] for i in range(model.L2)] for j in range(model.L1)])
     print(f"J1 Hamiltonian gives: <spin2|H|spin1>={J1_Op.vdot(spin2, spin1)}")
+    assert abs(J1_Op.vdot(spin2, spin1)) < 1e-5, f"Neel state is not orthogonal: {J1_Op.vdot(spin2, spin1)}"
 
 def test_h():
     print("Testing h Hamiltonian on 2x1 lattice...")
@@ -114,10 +116,10 @@ def test_expectation():
 
 if __name__ == "__main__":
     test_neel()
-    # test_J1()
-    # test_h()
-    # # Test the SzSz expectation value
-    # test_SzSz()
-    # # Test the model expectation
-    # test_expectation()
-    # print("All tests passed!")
+    test_J1()
+    test_h()
+    # Test the SzSz expectation value
+    test_SzSz()
+    # Test the model expectation
+    test_expectation()
+    print("All tests passed!")

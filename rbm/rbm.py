@@ -14,9 +14,9 @@ class RBM:
         self.L2 = model.L2
         self.M = 3*int(self.L1*self.L2/2)
 
-        self.a = (np.random.random(self.L1*self.L2)-0.5) + 1j * (np.random.random(self.L1*self.L2) -0.5) #np.ones(self.L1 * self.L2)
-        self.b = (np.random.random(self.M)-0.5) + 1j * (np.random.random(self.M)-0.5)#np.zeros(self.M)
-        self.M = (np.random.random((self.M, self.L1 * self.L2))-0.5) + 1j * (np.random.random((self.M, self.L1 * self.L2))-0.5)#np.ones((self.M, self.L1 * self.L2))
+        self.a = (np.random.random(self.L1*self.L2)-0.5) #np.ones(self.L1 * self.L2)
+        self.b = (np.random.random(self.M)-0.5) #np.zeros(self.M)
+        self.M = (np.random.random((self.M, self.L1 * self.L2))-0.5) #np.ones((self.M, self.L1 * self.L2))
 
         self.evaluate_function = self.evaluate
         if seed != -1:
@@ -62,7 +62,7 @@ class RBM:
         projected_spin = self.model.project_spin(spin)
         #print(self.M, projected_spin, np.prod(2 * np.cosh(self.b + np.dot(self.M, projected_spin))))
         result = np.exp(np.dot(self.a, projected_spin)) * np.prod(2 * np.cosh(self.b + np.dot(self.M, projected_spin)))
-        assert np.isreal(result), f"Invalid result {result}"
+        assert np.isreal(result), f"Result {result} is complex"
         return np.exp(np.dot(self.a, projected_spin)) * np.prod(2 * np.cosh(self.b + np.dot(self.M, projected_spin)))
     
     def metropolis_step(self, spin):

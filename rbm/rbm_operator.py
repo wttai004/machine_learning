@@ -12,7 +12,7 @@ class Operator:
         self.twositeoperators = []
 
     def generate_identity(self):
-        result = np.zeros((self.L1, self.L2, 2, 2), dtype = complex)
+        result = np.zeros((self.L1, self.L2, 2, 2))
         #adding the identity operators
         for i in range(self.L1):
             for j in range(self.L2):
@@ -192,4 +192,24 @@ def set_J2_Hamiltonian(model, J = 1):
     for i in range(model.L1):
         for j in range(model.L2-1):        
             result.add_SdotS_interaction(i, j, i+1, j+1, J)  
+    return result
+
+
+def set_Sz_operator(model):
+    """
+    Returns sum_i Sz_(i, 0)
+    """
+    return set_h_Hamiltonian(model, h = 1)
+
+def set_SzSz_operator(model):
+    """
+    Returns sum_i SzSz_(i, j, i+1, j) + sum_i SzSz_(i, j, i, j+1)
+    """
+    result = Operator(model)
+    for i in range(model.L1-1):
+        for j in range(model.L2):
+            result.add_SzSz(i, j, i+1, j, 1)  
+    for i in range(model.L1):
+        for j in range(model.L2-1):      
+            result.add_SzSz(i, j, i, j+1, 1)  
     return result
