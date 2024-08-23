@@ -18,7 +18,9 @@ from models import get_qwz_graph, get_qwz_Ham, cdag_, c_
 from networks import *
 from helper import get_ed_data
 
-L = 2  # Side of the square
+print("NetKet version: ", nk.__version__)
+
+L = 4  # Side of the square
 N = L ** 2
 
 graph, hi = get_qwz_graph(L)
@@ -29,12 +31,10 @@ U = 0.2
 s = 0
 p = 1
 
+print("Initial parameters: m = 4.1, t = 1.0, U = 0.2")
+
 H = get_qwz_Ham(hi, graph, m = m, t = t, U = U)
 
-# Exact diagonalization
-
-evals, evecs = get_ed_data(H)
-E_gs = evals[0]
 
 def corr_func(i):
     return cdag_(hi, i, s) * c_(hi, 0, s) + cdag_(hi, i, p) * c_(hi, 0, p)
@@ -42,6 +42,8 @@ def corr_func(i):
 corrs = {}
 for i in range(N):
     corrs[f"cdag{i}c0"] = corr_func(i)
+
+print("Using Slater determinant wave function")
 
 n_iter = 300
 # Create the Slater determinant model
@@ -65,10 +67,12 @@ gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
 slater_log=nk.logging.RuntimeLog()
 
 # Run the optimization for 300 iterations
-gs.run(n_iter=n_iter, out=f"data/slater_log_m={m}", obs = corrs)
+gs.run(n_iter=n_iter, out=f"data/slater_log_L={L}_m={m}", obs = corrs)
 
 ### Neural Jastrow-Slater wave function
 
+
+print("Using Neural Jastrow-Slater wave function")
 
 # Create a Neural Jastrow Slater wave function 
 model = LogNeuralJastrowSlater(hi, hidden_units=N)
@@ -90,9 +94,11 @@ gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
 nj_log=nk.logging.RuntimeLog()
 
 # Run the optimization for 300 iterations
-gs.run(n_iter=n_iter, out=f"data/nj_log_m={m}", obs = corrs)
+gs.run(n_iter=n_iter, out=f"data/nj_log_L={L}_m={m}", obs = corrs)
 
 #### m is now 3.9
+
+print("m is now 3.9")
 
 
 m = 3.9
@@ -103,11 +109,6 @@ p = 1
 
 H = get_qwz_Ham(hi, graph, m = m, t = t, U = U)
 
-# Exact diagonalization
-
-evals, evecs = get_ed_data(H)
-E_gs = evals[0]
-
 def corr_func(i):
     return cdag_(hi, i, s) * c_(hi, 0, s) + cdag_(hi, i, p) * c_(hi, 0, p)
 
@@ -116,6 +117,8 @@ for i in range(N):
     corrs[f"cdag{i}c0"] = corr_func(i)
 
 n_iter = 300
+
+print("Using Slater determinant wave function")
 # Create the Slater determinant model
 model = LogSlaterDeterminant(hi)
 
@@ -137,10 +140,11 @@ gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
 slater_log=nk.logging.RuntimeLog()
 
 # Run the optimization for 300 iterations
-gs.run(n_iter=n_iter, out=f"data/slater_log_m={m}", obs = corrs)
+gs.run(n_iter=n_iter, out=f"data/slater_log_L={L}_m={m}", obs = corrs)
 
 ### Neural Jastrow-Slater wave function
 
+print("Using Neural Jastrow-Slater wave function")
 
 # Create a Neural Jastrow Slater wave function 
 model = LogNeuralJastrowSlater(hi, hidden_units=N)
@@ -162,4 +166,6 @@ gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
 nj_log=nk.logging.RuntimeLog()
 
 # Run the optimization for 300 iterations
-gs.run(n_iter=n_iter, out=f"data/nj_log_m={m}", obs = corrs)
+gs.run(n_iter=n_iter, out=f"data/nj_log_L={L}_m={m}", obs = corrs)
+
+print("All done!")
