@@ -18,20 +18,47 @@ from models import get_qwz_graph, get_qwz_Ham, cdag_, c_
 from networks import *
 from helper import get_ed_data
 
+print("Program running...", flush = True) 
+
+home_dir = os.path.expanduser('~')
+##### PROGRAM START #####
+from argparse import ArgumentParser
+
+# parse command-line arguments
+parser = ArgumentParser()
+
+parser.add_argument("--L", type=int, default=4, help="Side of the square")
+parser.add_argument("--m", type=float, default=5.0, help="mass term in the Hamiltonian")
+parser.add_argument("--t", type=float, default=1.0, help="hopping term in the Hamiltonian")
+parser.add_argument("--U", type=float, default=0.2, help="interaction term in the Hamiltonian")
+parser.add_argument("--n_iter", type=int, default=300, help="number of iterations")
+parser.add_argument("--learning_rate", type=float, default=0.01, help="learning rate")
+parser.add_argument("--diag_shift", type=float, default=0.05, help="diagonal shift in the Stochastic Reconfiguration method")
+parser.add_argument("--n_discard_per_chain", type=int, default=16, help="number of samples to discard per chain")
+parser.add_argument("--n_samples", type=int, default=2**12, help="number of samples")
+parser.add_argument("--model", type=str, default="slater", help="model to use: slater or nj")
+
+args = parser.parse_args()
+
+L = args.L
+N = L ** 2
+m = args.m
+t = args.t
+U = args.U
+n_iter = args.n_iter
+learning_rate = args.learning_rate
+diag_shift = args.diag_shift
+n_discard_per_chain = args.n_discard_per_chain
+n_samples = args.n_samples
+model = args.model
+
 print("NetKet version: ", nk.__version__)
 
-L = 4  # Side of the square
-N = L ** 2
-
 graph, hi = get_qwz_graph(L)
-
-m = 4.1
-t = 1.0
-U = 0.2
 s = 0
 p = 1
 
-print("Initial parameters: m = 4.1, t = 1.0, U = 0.2")
+print(f"Initial parameters: m = {m}, t = {t}, U = {U}")
 
 H = get_qwz_Ham(hi, graph, m = m, t = t, U = U)
 
@@ -43,22 +70,30 @@ corrs = {}
 for i in range(N):
     corrs[f"cdag{i}c0"] = corr_func(i)
 
-print("Using Slater determinant wave function")
+if model == "slater":
+    print("Using Slater determinant wave function")
 
-n_iter = 300
-# Create the Slater determinant model
-model = LogSlaterDeterminant(hi)
+    # Create the Slater determinant model
+    model = LogSlaterDeterminant(hi)
 
+elif model == "nj":
+    print("Using Neural Jastrow-Slater wave function")
+
+    # Create a Neural Jastrow Slater wave function 
+    model = LogNeuralJastrowSlater(hi, hidden_units=N)
+
+else:
+    raise ValueError("Invalid model type")
 # Define the Metropolis-Hastings sampler
 sa = nk.sampler.MetropolisExchange(hi, graph=graph)
 
-vstate = nk.vqs.MCState(sa, model, n_samples=2**12, n_discard_per_chain=16)
+vstate = nk.vqs.MCState(sa, model, n_samples=n_samples, n_discard_per_chain=n_discard_per_chain)
 
 # Define the optimizer
-op = nk.optimizer.Sgd(learning_rate=0.01)
+op = nk.optimizer.Sgd(learning_rate=learning_rate)
 
 # Define a preconditioner
-preconditioner = nk.optimizer.SR(diag_shift=0.05)
+preconditioner = nk.optimizer.SR(diag_shift=diag_shift)
 
 # Create the VMC (Variational Monte Carlo) driver
 gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
@@ -69,103 +104,5 @@ slater_log=nk.logging.RuntimeLog()
 # Run the optimization for 300 iterations
 gs.run(n_iter=n_iter, out=f"data/slater_log_L={L}_m={m}", obs = corrs)
 
-### Neural Jastrow-Slater wave function
-
-
-print("Using Neural Jastrow-Slater wave function")
-
-# Create a Neural Jastrow Slater wave function 
-model = LogNeuralJastrowSlater(hi, hidden_units=N)
-
-# Define a Metropolis exchange sampler
-sa = nk.sampler.MetropolisExchange(hi, graph=graph)
-
-# Define an optimizer
-op = nk.optimizer.Sgd(learning_rate=0.01)
-
-# Create a variational state
-vstate = nk.vqs.MCState(sa, model, n_samples=2**12, n_discard_per_chain=16)
-
-# Create a Variational Monte Carlo driver
-preconditioner = nk.optimizer.SR(diag_shift=0.01)
-gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
-
-# Construct the logger to visualize the data later on
-nj_log=nk.logging.RuntimeLog()
-
-# Run the optimization for 300 iterations
-gs.run(n_iter=n_iter, out=f"data/nj_log_L={L}_m={m}", obs = corrs)
-
-#### m is now 3.9
-
-print("m is now 3.9")
-
-
-m = 3.9
-t = 1.0
-U = 0.2
-s = 0
-p = 1
-
-H = get_qwz_Ham(hi, graph, m = m, t = t, U = U)
-
-def corr_func(i):
-    return cdag_(hi, i, s) * c_(hi, 0, s) + cdag_(hi, i, p) * c_(hi, 0, p)
-
-corrs = {}
-for i in range(N):
-    corrs[f"cdag{i}c0"] = corr_func(i)
-
-n_iter = 300
-
-print("Using Slater determinant wave function")
-# Create the Slater determinant model
-model = LogSlaterDeterminant(hi)
-
-# Define the Metropolis-Hastings sampler
-sa = nk.sampler.MetropolisExchange(hi, graph=graph)
-
-vstate = nk.vqs.MCState(sa, model, n_samples=2**12, n_discard_per_chain=16)
-
-# Define the optimizer
-op = nk.optimizer.Sgd(learning_rate=0.01)
-
-# Define a preconditioner
-preconditioner = nk.optimizer.SR(diag_shift=0.05)
-
-# Create the VMC (Variational Monte Carlo) driver
-gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
-
-# Construct the logger to visualize the data later on
-slater_log=nk.logging.RuntimeLog()
-
-# Run the optimization for 300 iterations
-gs.run(n_iter=n_iter, out=f"data/slater_log_L={L}_m={m}", obs = corrs)
-
-### Neural Jastrow-Slater wave function
-
-print("Using Neural Jastrow-Slater wave function")
-
-# Create a Neural Jastrow Slater wave function 
-model = LogNeuralJastrowSlater(hi, hidden_units=N)
-
-# Define a Metropolis exchange sampler
-sa = nk.sampler.MetropolisExchange(hi, graph=graph)
-
-# Define an optimizer
-op = nk.optimizer.Sgd(learning_rate=0.01)
-
-# Create a variational state
-vstate = nk.vqs.MCState(sa, model, n_samples=2**12, n_discard_per_chain=16)
-
-# Create a Variational Monte Carlo driver
-preconditioner = nk.optimizer.SR(diag_shift=0.01)
-gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
-
-# Construct the logger to visualize the data later on
-nj_log=nk.logging.RuntimeLog()
-
-# Run the optimization for 300 iterations
-gs.run(n_iter=n_iter, out=f"data/nj_log_L={L}_m={m}", obs = corrs)
 
 print("All done!")

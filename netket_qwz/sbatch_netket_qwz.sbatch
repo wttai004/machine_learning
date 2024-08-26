@@ -1,8 +1,9 @@
 #!/bin/bash
 
 #SBATCH -J nkqwz
-#SBATCH --ntasks=1
-#SBATCH --time=24:00:00
+#SBATCH --ntasks=6
+#SBATCH --nodes=6
+#SBATCH --time=48:00:00
 
 module load gcc mkl
 
@@ -10,4 +11,8 @@ source /home1/wttai/miniconda3/etc/profile.d/conda.sh
 
 conda activate netket
 
-srun python3 qwz_model.py
+srun python3 ~/multirun.py qwz_model.task
+
+rm qwz_model.sync
+
+
