@@ -1,8 +1,5 @@
 import netket as nk
 import netket.experimental as nkx
-from netket.experimental.operator.fermion import destroy as c
-from netket.experimental.operator.fermion import create as cdag
-from netket.experimental.operator.fermion import number as nc
 from scipy.sparse.linalg import eigsh
 import numpy as np
 import scipy.sparse.linalg
@@ -14,7 +11,7 @@ import matplotlib.pyplot as plt
 import sys, os
 sys.path.append('/Users/wttai/Documents/Jupyter/machine_learning/common_lib')
 sys.path.append('/home1/wttai/machine_learning/common_lib')
-from models import get_qwz_graph, get_qwz_Ham, cdag_, c_
+from models import get_qwz_graph, get_qwz_Ham, cdag_, c_, nc_
 from networks import *
 from helper import get_ed_data
 
@@ -64,7 +61,8 @@ H = get_qwz_Ham(hi, graph, m = m, t = t, U = U)
 
 
 def corr_func(i):
-    return cdag_(hi, i, s) * c_(hi, 0, s) + cdag_(hi, i, p) * c_(hi, 0, p)
+    return nc_(hi, i, s) * nc_(hi, 0, s) + nc_(hi, i, p) * nc_(hi, 0, p)
+    #return cdag_(hi, i, s) * c_(hi, 0, s) + cdag_(hi, i, p) * c_(hi, 0, p)
 
 corrs = {}
 for i in range(N):
@@ -75,12 +73,14 @@ if model == "slater":
 
     # Create the Slater determinant model
     model = LogSlaterDeterminant(hi)
+    outputFilename="data/slater_log_L={L}_m={m}"
 
 elif model == "nj":
     print("Using Neural Jastrow-Slater wave function")
 
     # Create a Neural Jastrow Slater wave function 
     model = LogNeuralJastrowSlater(hi, hidden_units=N)
+    outputFilename=f"data/nj_log_L={L}_m={m}"
 
 else:
     raise ValueError("Invalid model type")
@@ -102,7 +102,7 @@ gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
 slater_log=nk.logging.RuntimeLog()
 
 # Run the optimization for 300 iterations
-gs.run(n_iter=n_iter, out=f"data/slater_log_L={L}_m={m}", obs = corrs)
+gs.run(n_iter=n_iter, out=outputFilename, obs = corrs)
 
 
 print("All done!")
