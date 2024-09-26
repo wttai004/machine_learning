@@ -11,8 +11,8 @@ source /home1/wttai/miniconda3/etc/profile.d/conda.sh
 
 conda activate netket
 
-srun python3 ~/multirun.py qwz_model.task
+srun python3 ~/multirun.py netket_qwz.task
 
-rm qwz_model.sync
+rm netket_qwz.sync
 
 

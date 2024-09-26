@@ -1,0 +1,13 @@
+L = [4]
+m = [2.0, 3.0, 5.0]
+t = [1.0]
+U = [0.0, 1.0]
+n_iter = [300]
+learning_rate = [0.01]
+diag_shift = [0.05]
+n_discard_per_chain = [32]
+n_samples = [8192]
+model = ['slater', 'nj']
+
+
+EXEC('python netket_qwz.py --L={L} --m={m} --t={t} --U={U} --n_iter={n_iter} --learning_rate={learning_rate} --diag_shift={diag_shift} --n_discard_per_chain={n_discard_per_chain} --n_samples={n_samples} --model={model}')

@@ -34,7 +34,7 @@ parser.add_argument("--diag_shift", type=float, default=0.05, help="diagonal shi
 parser.add_argument("--n_discard_per_chain", type=int, default=16, help="number of samples to discard per chain")
 parser.add_argument("--n_samples", type=int, default=2**12, help="number of samples")
 parser.add_argument("--model", type=str, default="slater", help="model to use: slater or nj")
-
+parser.add_argument("--pbc",  dest="pbc", help="periodic boundary conditions", action="store_true")
 args = parser.parse_args()
 
 L = args.L
@@ -48,10 +48,11 @@ diag_shift = args.diag_shift
 n_discard_per_chain = args.n_discard_per_chain
 n_samples = args.n_samples
 model = args.model
+pbc = args.pbc
 
 print("NetKet version: ", nk.__version__)
 
-graph, hi = get_qwz_graph(L)
+graph, hi = get_qwz_graph(L, N = N, pbc = pbc)
 s = 0
 p = 1
 
@@ -73,14 +74,14 @@ if model == "slater":
 
     # Create the Slater determinant model
     model = LogSlaterDeterminant(hi)
-    outputFilename="data/slater_log_L={L}_m={m}"
+    outputFilename=f"data/slater_log_L={L}_t={t}_m={m}_U={U}"
 
 elif model == "nj":
     print("Using Neural Jastrow-Slater wave function")
 
     # Create a Neural Jastrow Slater wave function 
     model = LogNeuralJastrowSlater(hi, hidden_units=N)
-    outputFilename=f"data/nj_log_L={L}_m={m}"
+    outputFilename=f"data/nj_log_L={L}_t={t}_m={m}_U={U}"
 
 else:
     raise ValueError("Invalid model type")

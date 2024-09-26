@@ -1,0 +1,18 @@
+#!/bin/bash
+
+#SBATCH -J dmrgqwz
+#SBATCH --ntasks=4
+#SBATCH --nodes=4
+#SBATCH --time=48:00:00
+
+module load gcc mkl
+
+source /home1/wttai/miniconda3/etc/profile.d/conda.sh
+
+conda activate /data1/conda/mobius
+
+srun python3 ~/multirun.py dmrg_qwz.task
+
+rm dmrg_qwz.sync
+
+
