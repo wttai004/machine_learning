@@ -52,11 +52,13 @@ pbc = args.pbc
 
 print("NetKet version: ", nk.__version__)
 
+print(f"Initial parameters: m = {m}, t = {t}, U = {U}")
+print(f"Particle number = {N}, L = {L}, pbc = {pbc}")
+
 graph, hi = get_qwz_graph(L, N = N, pbc = pbc)
 s = 0
 p = 1
 
-print(f"Initial parameters: m = {m}, t = {t}, U = {U}")
 
 H = get_qwz_Ham(hi, graph, m = m, t = t, U = U)
 
