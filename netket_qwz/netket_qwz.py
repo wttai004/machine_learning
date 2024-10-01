@@ -35,6 +35,7 @@ parser.add_argument("--n_discard_per_chain", type=int, default=16, help="number 
 parser.add_argument("--n_samples", type=int, default=2**12, help="number of samples")
 parser.add_argument("--model", type=str, default="slater", help="model to use: slater or nj")
 parser.add_argument("--pbc",  dest="pbc", help="periodic boundary conditions", action="store_true")
+parser.add_argument("--n_hidden", type=int, default=8, help="number of hidden units in the Neural Jastrow/Backflow model")
 args = parser.parse_args()
 
 L = args.L
@@ -42,6 +43,7 @@ N = L ** 2
 m = args.m
 t = args.t
 U = args.U
+n_hidden = args.n_hidden
 n_iter = args.n_iter
 learning_rate = args.learning_rate
 diag_shift = args.diag_shift
@@ -49,6 +51,8 @@ n_discard_per_chain = args.n_discard_per_chain
 n_samples = args.n_samples
 model = args.model
 pbc = args.pbc
+
+outputDir = "home1/wttai/machine_learning/netket_qwz/"
 
 print("NetKet version: ", nk.__version__)
 
@@ -76,14 +80,18 @@ if model == "slater":
 
     # Create the Slater determinant model
     model = LogSlaterDeterminant(hi)
-    outputFilename=f"data/slater_log_L={L}_t={t}_m={m}_U={U}"
+    outputFilename=outputDir+f"data/slater_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
 
 elif model == "nj":
     print("Using Neural Jastrow-Slater wave function")
 
     # Create a Neural Jastrow Slater wave function 
-    model = LogNeuralJastrowSlater(hi, hidden_units=N)
-    outputFilename=f"data/nj_log_L={L}_t={t}_m={m}_U={U}"
+    model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden)
+    outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
+
+elif model == "nb":
+    model = LogNeuralBackflow(hi, hidden_units=n_hidden)
+    outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
 
 else:
     raise ValueError("Invalid model type")
@@ -109,3 +117,5 @@ gs.run(n_iter=n_iter, out=outputFilename, obs = corrs)
 
 
 print("All done!")
+
+print(f"Saving into {outputFilename}.log")
