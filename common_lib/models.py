@@ -53,6 +53,16 @@ def nc_(hi, i, o):
 
 s = 0
 p = 1
+
+def get_hubbard_Ham(hi, graph, t = 1.0, U = 1.0):
+    #Note that here, s and p actually means the spins 
+    H = 0.0 + 0.0j
+    for i in graph.nodes():
+        H += U * (nc_(hi, i, s) + nc_(hi, i, p) - 1) * (nc_(hi, i, s) + nc_(hi, i, p) - 1)
+    for (i, j), color in zip(graph.edges(), graph.edge_colors):
+        H +=  t * (cdag_(hi, i, s) * c_(hi, j, s) + cdag_(hi, j, s) * c_(hi, i, s) + cdag_(hi, i, p) * c_(hi, j, p) + cdag_(hi ,j, p) * c_(hi ,i, p))
+    return H
+
 def get_qwz_Ham(hi, graph, m = 1.0, t = 1.0, U = 1.0):
 
     H = 0.0 + 0.0j

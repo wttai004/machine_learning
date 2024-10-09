@@ -19,7 +19,7 @@ class LogSlaterDeterminant(nn.Module):
     @nn.compact
     def __call__(self, n):
         # the N x Nf matrix of the orbitals
-        M = self.param('M', self.kernel_init, (self.hilbert.n_orbitals, self.hilbert.n_fermions,), self.param_dtype)
+        M = self.param('M', self.kernel_init, (self.hilbert.size, self.hilbert.n_fermions,), self.param_dtype)
 
         @partial(jnp.vectorize, signature='(n)->()')
         def log_sd(n):
@@ -46,7 +46,7 @@ class LogNeuralJastrowSlater(nn.Module):
         @partial(jnp.vectorize, signature='(n)->()')
         def log_wf(n):
             #Bare Slater Determinant (N x Nf matrix of the orbital amplitudes) 
-            M = self.param('M', self.kernel_init, (self.hilbert.n_orbitals, self.hilbert.n_fermions,), self.param_dtype)
+            M = self.param('M', self.kernel_init, (self.hilbert.size, self.hilbert.n_fermions,), self.param_dtype)
 
             #Construct the Neural Jastrow
             J = nn.Dense(self.hidden_units, param_dtype=self.param_dtype)(n)
@@ -75,14 +75,14 @@ class LogNeuralBackflow(nn.Module):
         @partial(jnp.vectorize, signature='(n)->()')
         def log_sd(n):
             #Bare Slater Determinant (N x Nf matrix of the orbital amplitudes) 
-            M = self.param('M', self.kernel_init, (self.hilbert.n_orbitals, self.hilbert.n_fermions,), self.param_dtype)
+            M = self.param('M', self.kernel_init, (self.hilbert.size, self.hilbert.n_fermions,), self.param_dtype)
 
             # Construct the Backflow. Takes as input strings of $N$ occupation numbers, outputs an $N x Nf$ matrix
             # that modifies the bare orbitals.
             F = nn.Dense(self.hidden_units, param_dtype=self.param_dtype)(n)
             F = jax.nn.tanh(F)
             # last layer, outputs N x Nf values
-            F = nn.Dense(self.hilbert.n_orbitals * self.hilbert.n_fermions, param_dtype=self.param_dtype)(F)
+            F = nn.Dense(self.hilbert.size * self.hilbert.n_fermions, param_dtype=self.param_dtype)(F)
             # reshape into M and add
             M += F.reshape(M.shape)
             

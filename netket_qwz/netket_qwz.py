@@ -52,7 +52,7 @@ n_samples = args.n_samples
 model = args.model
 pbc = args.pbc
 
-outputDir = "home1/wttai/machine_learning/netket_qwz/"
+outputDir = "/home1/wttai/machine_learning/netket_qwz/"
 
 print("NetKet version: ", nk.__version__)
 
@@ -80,18 +80,20 @@ if model == "slater":
 
     # Create the Slater determinant model
     model = LogSlaterDeterminant(hi)
-    outputFilename=outputDir+f"data/slater_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
+    outputFilename=outputDir+f"data/slater_log_L={L}_t={t}_m={m}_U={U}"
 
 elif model == "nj":
     print("Using Neural Jastrow-Slater wave function")
 
     # Create a Neural Jastrow Slater wave function 
     model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden)
-    outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
+    #outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
+    outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}"
 
 elif model == "nb":
     model = LogNeuralBackflow(hi, hidden_units=n_hidden)
-    outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
+    #outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
+    outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}"
 
 else:
     raise ValueError("Invalid model type")
