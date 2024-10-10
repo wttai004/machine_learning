@@ -37,40 +37,50 @@ def get_qwz_graph(L, L2 = -1, N = -1, pbc = False):
 
     if N == -1:
         N = L * L2
-    hi = nkx.hilbert.SpinOrbitalFermions(N_f, s=1/2, n_fermions=N)
+    hi = nkx.hilbert.SpinOrbitalFermions(N_f * 2, s=None, n_fermions=N)
 
     return graph, hi
+
+def c_(hi, i, o):
+    #Each site has two orbitals o = 0, 1
+    return c(hi, 2*i+o)
+
+def cdag_(hi, i, o):
+    return cdag(hi, 2*i+o)
+
+def nc_(hi, i, o):
+    return nc(hi, 2*i+o)
+
+s = 0
+p = 1
 
 def get_hubbard_Ham(hi, graph, t = 1.0, U = 1.0):
     #Note that here, s and p actually means the spins 
     H = 0.0 + 0.0j
-    for (i, j) in graph.edges():
-        for spin in [-1, 1]:
-            H += t * (cdag(hi, i, spin) * c(hi, j, spin) + cdag(hi, j, spin) * c(hi, i, spin))
-
     for i in graph.nodes():
-        H += U * (nc(hi, i, 1) + nc(hi, i, -1) - 1) * (nc(hi, i, 1) + nc(hi, i, -1) - 1)
+        H += U * (nc_(hi, i, s) + nc_(hi, i, p) - 1) * (nc_(hi, i, s) + nc_(hi, i, p) - 1)
+    for (i, j), color in zip(graph.edges(), graph.edge_colors):
+        H +=  t * (cdag_(hi, i, s) * c_(hi, j, s) + cdag_(hi, j, s) * c_(hi, i, s) + cdag_(hi, i, p) * c_(hi, j, p) + cdag_(hi ,j, p) * c_(hi ,i, p))
     return H
 
 def get_qwz_Ham(hi, graph, m = 1.0, t = 1.0, U = 1.0):
-    s, p = 1, -1
 
     H = 0.0 + 0.0j
 
     for i in graph.nodes():
-        H += m * (nc(hi, i, s) - nc(hi, i, p))
-        H += U * nc(hi, i, s) * nc(hi, i, p)
+        H += m * (nc_(hi, i, 0) - nc_(hi, i, 1))
+        H += U * nc_(hi, i, s) * nc_(hi, i, p)
 
     for (i, j), color in zip(graph.edges(), graph.edge_colors):
-        H +=  t * (cdag(hi, i, s) * c(hi, j, s) + cdag(hi, j, s) * c(hi, i, s) - cdag(hi, i, p) * c(hi, j, p) - cdag(hi ,j, p) * c(hi ,i, p))
+        H +=  t * (cdag_(hi, i, s) * c_(hi, j, s) + cdag_(hi, j, s) * c_(hi, i, s) - cdag_(hi, i, p) * c_(hi, j, p) - cdag_(hi ,j, p) * c_(hi ,i, p))
         if color == 1:
             # x direction hopping
-            H += 1j * t * (cdag(hi, i, s) * c(hi, j, p) - cdag(hi, j, p) * c(hi, i, s)
-                        + cdag(hi, i, p) * c(hi, j, s) - cdag(hi, j, s) * c(hi, i, p))
+            H += 1j * t * (cdag_(hi, i, s) * c_(hi, j, p) - cdag_(hi, j, p) * c_(hi, i, s)
+                        + cdag_(hi, i, p) * c_(hi, j, s) - cdag_(hi, j, s) * c_(hi, i, p))
         elif color == 2:
             # y direction hopping
-            H += t * (cdag(hi, i, s) * c(hi, j, p) - cdag(hi, i, p) * c(hi, j, s) 
-                    + cdag(hi, j, p) * c(hi, i, s) - cdag(hi, j, s) * c(hi, i, p))
+            H += t * (cdag_(hi, i, s) * c_(hi, j, p) - cdag_(hi, i, p) * c_(hi, j, s) 
+                    + cdag_(hi, j, p) * c_(hi, i, s) - cdag_(hi, j, s) * c_(hi, i, p))
         else:
             raise ValueError("Invalid color")
     return H
