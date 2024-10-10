@@ -11,8 +11,10 @@ Archive/
 log/
 
 # Log files
-
 *.log
+
+# mpack files
+*.mpack
 
 # Old results
 QWZ_ed_results/
