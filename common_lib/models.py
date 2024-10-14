@@ -69,8 +69,33 @@ def get_qwz_Ham(hi, graph, m = 1.0, t = 1.0, U = 1.0):
                         + cdag(hi, i, p) * c(hi, j, s) - cdag(hi, j, s) * c(hi, i, p))
         elif color == 2:
             # y direction hopping
-            H += t * (cdag(hi, i, s) * c(hi, j, p) - cdag(hi, i, p) * c(hi, j, s) 
-                    + cdag(hi, j, p) * c(hi, i, s) - cdag(hi, j, s) * c(hi, i, p))
+            H += t * (cdag(hi, i, s) * c(hi, j, p) + cdag(hi, j, p) * c(hi, i, s)
+                     - cdag(hi, i, p) * c(hi, j, s) - cdag(hi, j, s) * c(hi, i, p))
+        else:
+            raise ValueError("Invalid color")
+    return H
+
+def get_debug_Ham(hi, graph, m = 1.0, t = 1.0, U = 1.0):
+    #This is the qwz hamiltonian but modified so that it is real
+    #It probably means nothing physically relevant
+    s, p = 1, -1
+
+    H = 0.0 + 0.0j
+
+    for i in graph.nodes():
+        H += m * (nc(hi, i, s) - nc(hi, i, p))
+        H += U * nc(hi, i, s) * nc(hi, i, p)
+
+    for (i, j), color in zip(graph.edges(), graph.edge_colors):
+        H +=  t * (cdag(hi, i, s) * c(hi, j, s) + cdag(hi, j, s) * c(hi, i, s) - cdag(hi, i, p) * c(hi, j, p) - cdag(hi ,j, p) * c(hi ,i, p))
+        if color == 1:
+            # x direction hopping
+            H += t * (cdag(hi, i, s) * c(hi, j, p) + cdag(hi, j, p) * c(hi, i, s)
+                        - cdag(hi, i, p) * c(hi, j, s) - cdag(hi, j, s) * c(hi, i, p))
+        elif color == 2:
+            # y direction hopping
+            H += t * (cdag(hi, i, s) * c(hi, j, p) + cdag(hi, j, p) * c(hi, i, s)
+                     - cdag(hi, i, p) * c(hi, j, s) - cdag(hi, j, s) * c(hi, i, p))
         else:
             raise ValueError("Invalid color")
     return H
