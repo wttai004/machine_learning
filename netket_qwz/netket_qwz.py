@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import sys, os
 sys.path.append('/Users/wttai/Documents/Jupyter/machine_learning/common_lib')
 sys.path.append('/home1/wttai/machine_learning/common_lib')
-from models import get_qwz_graph, get_qwz_Ham, cdag_, c_, nc_
+from models import get_qwz_graph, get_qwz_Ham, cdag, c, nc
 from networks import *
 from helper import get_ed_data
 
@@ -24,7 +24,7 @@ from argparse import ArgumentParser
 # parse command-line arguments
 parser = ArgumentParser()
 
-parser.add_argument("--L", type=int, default=4, help="Side of the square")
+parser.add_argument("--L", type=int, default=2, help="Side of the square")
 parser.add_argument("--m", type=float, default=5.0, help="mass term in the Hamiltonian")
 parser.add_argument("--t", type=float, default=1.0, help="hopping term in the Hamiltonian")
 parser.add_argument("--U", type=float, default=0.2, help="interaction term in the Hamiltonian")
@@ -60,15 +60,15 @@ print(f"Initial parameters: m = {m}, t = {t}, U = {U}")
 print(f"Particle number = {N}, L = {L}, pbc = {pbc}")
 
 graph, hi = get_qwz_graph(L, N = N, pbc = pbc)
-s = 0
-p = 1
+complex=True
 
 
 H = get_qwz_Ham(hi, graph, m = m, t = t, U = U)
 
+s, p = 1, -1
 
 def corr_func(i):
-    return nc_(hi, i, s) * nc_(hi, 0, s) + nc_(hi, i, p) * nc_(hi, 0, p)
+    return nc(hi, i, s) * nc(hi, 0, s) + nc(hi, i, p) * nc(hi, 0, p)
     #return cdag_(hi, i, s) * c_(hi, 0, s) + cdag_(hi, i, p) * c_(hi, 0, p)
 
 corrs = {}
@@ -79,19 +79,19 @@ if model == "slater":
     print("Using Slater determinant wave function")
 
     # Create the Slater determinant model
-    model = LogSlaterDeterminant(hi)
+    model = LogSlaterDeterminant(hi, complex = complex)
     outputFilename=outputDir+f"data/slater_log_L={L}_t={t}_m={m}_U={U}"
 
 elif model == "nj":
     print("Using Neural Jastrow-Slater wave function")
 
     # Create a Neural Jastrow Slater wave function 
-    model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden)
+    model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden, complex = complex)
     #outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
     outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}"
 
 elif model == "nb":
-    model = LogNeuralBackflow(hi, hidden_units=n_hidden)
+    model = LogNeuralBackflow(hi, hidden_units=n_hidden, complex = complex)
     #outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
     outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}"
 
@@ -106,7 +106,7 @@ vstate = nk.vqs.MCState(sa, model, n_samples=n_samples, n_discard_per_chain=n_di
 op = nk.optimizer.Sgd(learning_rate=learning_rate)
 
 # Define a preconditioner
-preconditioner = nk.optimizer.SR(diag_shift=diag_shift)
+preconditioner = nk.optimizer.SR(diag_shift=diag_shift, holomorphic=complex)
 
 # Create the VMC (Variational Monte Carlo) driver
 gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)

@@ -10,72 +10,35 @@ import jax.numpy as jnp
 
 DType = Any
 
+
 class LogSlaterDeterminant(nn.Module):
     hilbert: nkx.hilbert.SpinOrbitalFermions
-    complex: bool = False  # Toggle for complex or real parameters
-
-    def setup(self):
-        if self.complex:
-            self.param_dtype = jnp.complex64
-            self.kernel_init = self.complex_kernel_init
-        else:
-            self.param_dtype = jnp.float32
-            self.kernel_init = nn.initializers.lecun_normal()
-
-    def complex_kernel_init(self, key, shape, dtype=jnp.complex64):
-        """Initializes complex parameters by combining real and imaginary parts."""
-        real_init = nn.initializers.lecun_normal()
-        imag_init = nn.initializers.lecun_normal()
-        key_real, key_imag = jax.random.split(key)
-        real = real_init(key_real, shape, dtype=jnp.float32)
-        imag = imag_init(key_imag, shape, dtype=jnp.float32)
-        return real + 1j * imag
+    kernel_init: NNInitFunc = default_kernel_init
+    param_dtype: DType = float
 
     @nn.compact
     def __call__(self, n):
-        # Initialize the parameter matrix M
-        M = self.param(
-            'M',
-            self.kernel_init,
-            (self.hilbert.size, self.hilbert.n_fermions),
-            self.param_dtype
-        )
+        # the N x Nf matrix of the orbitals
+        M = self.param('M', self.kernel_init, (self.hilbert.size, self.hilbert.n_fermions,), self.param_dtype)
 
         @partial(jnp.vectorize, signature='(n)->()')
         def log_sd(n):
-            # Find the positions of the occupied orbitals
+            #Find the positions of the occupied orbitals 
             R = n.nonzero(size=self.hilbert.n_fermions)[0]
             
             # Extract the Nf x Nf submatrix of M corresponding to the occupied orbitals
             A = M[R]
 
-            # Compute the logarithm of the determinant
             return nk.jax.logdet_cmplx(A)
 
         return log_sd(n)
-
+    
 
 class LogNeuralJastrowSlater(nn.Module):
     hilbert: nkx.hilbert.SpinOrbitalFermions
     hidden_units: int
-    complex: bool = False  
-
-    def setup(self):
-        if self.complex:
-            self.param_dtype = jnp.complex64
-            self.kernel_init = self.complex_kernel_init
-        else:
-            self.param_dtype = jnp.float32
-            self.kernel_init = nn.initializers.lecun_normal()
-
-    def complex_kernel_init(self, key, shape, dtype=jnp.complex64):
-        """Initializes complex parameters by combining real and imaginary parts."""
-        real_init = nn.initializers.lecun_normal()
-        imag_init = nn.initializers.lecun_normal()
-        key_real, key_imag = jax.random.split(key)
-        real = real_init(key_real, shape, dtype=jnp.float32)
-        imag = imag_init(key_imag, shape, dtype=jnp.float32)
-        return real + 1j * imag
+    kernel_init: NNInitFunc = default_kernel_init
+    param_dtype: DType = float
 
     @nn.compact
     def __call__(self, n):
@@ -86,7 +49,7 @@ class LogNeuralJastrowSlater(nn.Module):
             M = self.param('M', self.kernel_init, (self.hilbert.size, self.hilbert.n_fermions,), self.param_dtype)
 
             #Construct the Neural Jastrow
-            J = nn.Dense(self.hidden_units, param_dtype=self.param_dtype, kernel_init=self.kernel_init)(n)
+            J = nn.Dense(self.hidden_units, param_dtype=self.param_dtype)(n)
             J = jax.nn.tanh(J)
             J = J.sum()
             
@@ -103,24 +66,8 @@ class LogNeuralJastrowSlater(nn.Module):
 class LogNeuralBackflow(nn.Module):
     hilbert: nkx.hilbert.SpinOrbitalFermions
     hidden_units: int
-    complex: bool = True  # Toggle for complex or real parameters
-
-    def setup(self):
-        if self.complex:
-            self.param_dtype = jnp.complex64
-            self.kernel_init = self.complex_kernel_init
-        else:
-            self.param_dtype = jnp.float32
-            self.kernel_init = nn.initializers.lecun_normal()
-
-    def complex_kernel_init(self, key, shape, dtype=jnp.complex64):
-        """Initializes complex parameters by combining real and imaginary parts."""
-        real_init = nn.initializers.lecun_normal()
-        imag_init = nn.initializers.lecun_normal()
-        key_real, key_imag = jax.random.split(key)
-        real = real_init(key_real, shape, dtype=jnp.float32)
-        imag = imag_init(key_imag, shape, dtype=jnp.float32)
-        return real + 1j * imag
+    kernel_init: NNInitFunc = default_kernel_init
+    param_dtype: DType = float
 
     @nn.compact
     def __call__(self, n):
