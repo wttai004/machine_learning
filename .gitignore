@@ -16,6 +16,9 @@ log/
 # mpack files
 *.mpack
 
+# json files
+*.json
+
 # Old results
 QWZ_ed_results/
 

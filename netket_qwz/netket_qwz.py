@@ -52,7 +52,7 @@ n_samples = args.n_samples
 model = args.model
 pbc = args.pbc
 
-outputDir = "/home1/wttai/machine_learning/netket_qwz/"
+outputDir = "/home1/wttai/machine_learning/netket_qwz/data/"
 
 print("NetKet version: ", nk.__version__)
 
@@ -80,7 +80,7 @@ if model == "slater":
 
     # Create the Slater determinant model
     model = LogSlaterDeterminant(hi, complex = complex)
-    outputFilename=outputDir+f"data/slater_log_L={L}_t={t}_m={m}_U={U}"
+    outputFilename=outputDir+f"slater_log_L={L}_t={t}_m={m}_U={U}"
 
 elif model == "nj":
     print("Using Neural Jastrow-Slater wave function")
@@ -88,19 +88,28 @@ elif model == "nj":
     # Create a Neural Jastrow Slater wave function 
     model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden, complex = complex)
     #outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-    outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}"
+    outputFilename=outputDir+f"nj_log_L={L}_t={t}_m={m}_U={U}"
 
 elif model == "nb":
     model = LogNeuralBackflow(hi, hidden_units=n_hidden, complex = complex)
     #outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-    outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}"
+    outputFilename=outputDir+f"nb_log_L={L}_t={t}_m={m}_U={U}"
 
 else:
     raise ValueError("Invalid model type")
 # Define the Metropolis-Hastings sampler
-sa = nk.sampler.MetropolisExchange(hi, graph=graph)
 
-vstate = nk.vqs.MCState(sa, model, n_samples=n_samples, n_discard_per_chain=n_discard_per_chain)
+n_iter_trial = 100
+maxVariance = 5
+max_restarts = 3  # Maximum number of restart attempts
+restart_count = 0  # Counter to track restarts
+converged = False  # Flag to check if the run converged
+
+# Create the Slater determinant model
+model = LogSlaterDeterminant(hi, complex=complex)
+
+# Define the Metropolis-Hastings sampler
+sa = nk.sampler.ExactSampler(hi)
 
 # Define the optimizer
 op = nk.optimizer.Sgd(learning_rate=learning_rate)
@@ -108,16 +117,50 @@ op = nk.optimizer.Sgd(learning_rate=learning_rate)
 # Define a preconditioner
 preconditioner = nk.optimizer.SR(diag_shift=diag_shift, holomorphic=complex)
 
-# Create the VMC (Variational Monte Carlo) driver
-gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
+# Function to run the VMC simulation
+def run_simulation(n_iter = 50):
+    # Create the VMC (Variational Monte Carlo) driver
+    vstate = nk.vqs.MCState(sa, model, n_samples=2**12, n_discard_per_chain=16)
+    gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
+    
+    # Construct the logger to visualize the data later on
+    log = nk.logging.RuntimeLog()
+    
+    # Run the optimization for a short number of iterations (e.g., 50)
+    gs.run(n_iter=n_iter, out=log, obs=corrs)
+    
+    return log
 
-# Construct the logger to visualize the data later on
-slater_log=nk.logging.RuntimeLog()
+# Main loop for checking convergence and restarting if needed
+while restart_count < max_restarts and not converged:
+    slater_log = run_simulation(n_iter = n_iter_trial)
+    
+    print(slater_log['Energy']['Variance'])
+    # Check if the standard deviation of the energy at the last iteration is too high
+    if slater_log['Energy']['Variance'][-1] > maxVariance:
+        print(f"Bad convergence detected. Restarting attempt {restart_count + 1} of {max_restarts}...")
+        restart_count += 1
+    else:
+        converged = True
+        print("Good convergence. Continuing with the full run...")
 
-# Run the optimization for 300 iterations
-gs.run(n_iter=n_iter, out=outputFilename, obs = corrs)
+# If the loop exits without good convergence, raise an exception
+if not converged:
+    raise Exception("Failed to converge after 3 attempts. Aborting the run.")
+else:
+    # If converged, run the full simulation
+    print("Starting full simulation...")
+    # You can extend this part to run the full simulation for more iterations
+    full_n_iter = 300  # Change this to however many iterations you want for the full run
+    log = run_simulation(n_iter = n_iter)  # Re-run with the full iteration count
+    print("Full simulation completed.")
+
+
 
 
 print("All done!")
 
 print(f"Saving into {outputFilename}.log")
+
+# Run the optimization for 300 iterations
+slater_log.serialize(outputFilename)
