@@ -3,7 +3,7 @@
 #SBATCH -J nkqwz
 #SBATCH --ntasks=6
 #SBATCH --nodes=6
-#SBATCH --time=48:00:00
+#SBATCH --time=96:00:00
 
 module load gcc mkl
 

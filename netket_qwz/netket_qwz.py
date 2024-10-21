@@ -6,6 +6,7 @@ import scipy.sparse.linalg
 import jax
 import jax.numpy as jnp
 import json
+import time
 import matplotlib.pyplot as plt
 
 import sys, os
@@ -30,12 +31,14 @@ parser.add_argument("--t", type=float, default=1.0, help="hopping term in the Ha
 parser.add_argument("--U", type=float, default=0.2, help="interaction term in the Hamiltonian")
 parser.add_argument("--n_iter", type=int, default=300, help="number of iterations")
 parser.add_argument("--learning_rate", type=float, default=0.01, help="learning rate")
-parser.add_argument("--diag_shift", type=float, default=0.05, help="diagonal shift in the Stochastic Reconfiguration method")
+parser.add_argument("--diag_shift", type=float, default=0.01, help="diagonal shift in the Stochastic Reconfiguration method")
 parser.add_argument("--n_discard_per_chain", type=int, default=16, help="number of samples to discard per chain")
 parser.add_argument("--n_samples", type=int, default=2**12, help="number of samples")
 parser.add_argument("--model", type=str, default="slater", help="model to use: slater or nj")
 parser.add_argument("--pbc",  dest="pbc", help="periodic boundary conditions", action="store_true")
 parser.add_argument("--n_hidden", type=int, default=8, help="number of hidden units in the Neural Jastrow/Backflow model")
+parser.add_argument("--n_iter_trial", type=int, default=100, help="number of iterations attempted to check convergence")
+parser.add_argument("--max_restarts", type=int, default=3, help="maximum number of restarts")
 args = parser.parse_args()
 
 L = args.L
@@ -45,12 +48,18 @@ t = args.t
 U = args.U
 n_hidden = args.n_hidden
 n_iter = args.n_iter
+n_iter_trial = args.n_iter_trial
 learning_rate = args.learning_rate
 diag_shift = args.diag_shift
 n_discard_per_chain = args.n_discard_per_chain
 n_samples = args.n_samples
 model = args.model
 pbc = args.pbc
+max_restarts = args.max_restarts
+
+maxVariance = 20
+restart_count = 0  # Counter to track restarts
+converged = False  # Flag to check if the run converged
 
 outputDir = "/home1/wttai/machine_learning/netket_qwz/data/"
 
@@ -73,7 +82,7 @@ def corr_func(i):
 
 corrs = {}
 for i in range(N):
-    corrs[f"cdag{i}c0"] = corr_func(i)
+    corrs[f"nc{i}nc0"] = corr_func(i)
 
 if model == "slater":
     print("Using Slater determinant wave function")
@@ -84,32 +93,26 @@ if model == "slater":
 
 elif model == "nj":
     print("Using Neural Jastrow-Slater wave function")
-
     # Create a Neural Jastrow Slater wave function 
     model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden, complex = complex)
     #outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-    outputFilename=outputDir+f"nj_log_L={L}_t={t}_m={m}_U={U}"
+    outputFilename=outputDir+f"nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
 
 elif model == "nb":
+    print("Using Neural Backflow wave function")
     model = LogNeuralBackflow(hi, hidden_units=n_hidden, complex = complex)
     #outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-    outputFilename=outputDir+f"nb_log_L={L}_t={t}_m={m}_U={U}"
+    outputFilename=outputDir+f"nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
 
 else:
     raise ValueError("Invalid model type")
-# Define the Metropolis-Hastings sampler
-
-n_iter_trial = 100
-maxVariance = 5
-max_restarts = 3  # Maximum number of restart attempts
-restart_count = 0  # Counter to track restarts
-converged = False  # Flag to check if the run converged
 
 # Create the Slater determinant model
 model = LogSlaterDeterminant(hi, complex=complex)
 
 # Define the Metropolis-Hastings sampler
-sa = nk.sampler.ExactSampler(hi)
+#sa = nk.sampler.ExactSampler(hi)
+sa = nk.sampler.MetropolisLocal(hi)
 
 # Define the optimizer
 op = nk.optimizer.Sgd(learning_rate=learning_rate)
@@ -118,10 +121,11 @@ op = nk.optimizer.Sgd(learning_rate=learning_rate)
 preconditioner = nk.optimizer.SR(diag_shift=diag_shift, holomorphic=complex)
 
 # Function to run the VMC simulation
-def run_simulation(n_iter = 50):
+def run_simulation(n_iter = 50, gs = -1):
     # Create the VMC (Variational Monte Carlo) driver
-    vstate = nk.vqs.MCState(sa, model, n_samples=2**12, n_discard_per_chain=16)
-    gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
+    if gs == -1:
+        vstate = nk.vqs.MCState(sa, model, n_samples=2**12, n_discard_per_chain=16)
+        gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
     
     # Construct the logger to visualize the data later on
     log = nk.logging.RuntimeLog()
@@ -129,38 +133,59 @@ def run_simulation(n_iter = 50):
     # Run the optimization for a short number of iterations (e.g., 50)
     gs.run(n_iter=n_iter, out=log, obs=corrs)
     
-    return log
+    return gs, log
 
 # Main loop for checking convergence and restarting if needed
-while restart_count < max_restarts and not converged:
-    slater_log = run_simulation(n_iter = n_iter_trial)
-    
-    print(slater_log['Energy']['Variance'])
-    # Check if the standard deviation of the energy at the last iteration is too high
-    if slater_log['Energy']['Variance'][-1] > maxVariance:
-        print(f"Bad convergence detected. Restarting attempt {restart_count + 1} of {max_restarts}...")
-        restart_count += 1
-    else:
-        converged = True
-        print("Good convergence. Continuing with the full run...")
+if max_restarts != -1:
+    while restart_count < max_restarts and not converged:
+        gs, log = run_simulation(n_iter = n_iter_trial)
+        
+        print(log['Energy']['Variance'])
+        # Check if the standard deviation of the energy at the last iteration is too high
+        if log['Energy']['Variance'][-1] > maxVariance:
+            print(f"Bad convergence detected. Restarting attempt {restart_count + 1} of {max_restarts}...")
+            restart_count += 1
+        else:
+            converged = True
+            print("Good convergence. Continuing with the full run...")
+    # If the loop exits without good convergence, raise an exception
+    if not converged:
+        raise Exception("Failed to converge after 3 attempts. Aborting the run.")
 
-# If the loop exits without good convergence, raise an exception
-if not converged:
-    raise Exception("Failed to converge after 3 attempts. Aborting the run.")
-else:
-    # If converged, run the full simulation
-    print("Starting full simulation...")
-    # You can extend this part to run the full simulation for more iterations
-    full_n_iter = 300  # Change this to however many iterations you want for the full run
-    log = run_simulation(n_iter = n_iter)  # Re-run with the full iteration count
-    print("Full simulation completed.")
-
-
+# If converged, run the full simulation
+print("Starting full simulation...")
+# You can extend this part to run the full simulation for more iterations
+gs, log = run_simulation(n_iter = n_iter, gs = -1 if max_restarts == -1 else gs)  # Re-run with the full iteration count
+print("Full simulation completed.")
 
 
 print("All done!")
 
-print(f"Saving into {outputFilename}.log")
+print(f"Saving into {outputFilename}")
 
-# Run the optimization for 300 iterations
-slater_log.serialize(outputFilename)
+log.serialize(outputFilename)
+
+runtimeData = json.load(open(outputFilename + ".json"))
+
+metaData = {
+    'L': L,
+    'm': m,
+    't': t,
+    'U': U,
+    'n_hidden': n_hidden,
+    'n_iter': n_iter,
+    'learning_rate': learning_rate,
+    'diag_shift': diag_shift,
+    'n_discard_per_chain': n_discard_per_chain,
+    'n_samples': n_samples, 
+    'pbc': pbc,
+    'timestamp': time.strftime("%Y-%m-%d %H:%M:%S")
+}
+
+mergedData = {
+    'metadata': metaData,
+    'data': runtimeData
+}
+
+with open(outputFilename + ".json", 'w') as f:
+    json.dump(mergedData, f, indent=4)

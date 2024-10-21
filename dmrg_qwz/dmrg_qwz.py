@@ -23,9 +23,9 @@ from argparse import ArgumentParser
 
 parser = ArgumentParser()
 
-parser.add_argument("--L", type=int, default=2, help="Side of the square")
-parser.add_argument("--Lx", type=int, default=-1, help="Side of the rectangle in the x direction (if L is not specified)")
-parser.add_argument("--Ly", type=int, default=-1, help="Side of the rectangle in the y direction (if L is not specified)")
+parser.add_argument("--L", type=int, default=-1, help="Side of the square")
+parser.add_argument("--Lx", type=int, default=2, help="Side of the rectangle in the x direction (if L is not specified)")
+parser.add_argument("--Ly", type=int, default=2, help="Side of the rectangle in the y direction (if L is not specified)")
 parser.add_argument("--m", type=float, default=5.0, help="mass term in the Hamiltonian")
 parser.add_argument("--t", type=float, default=1.0, help="hopping term in the Hamiltonian")
 parser.add_argument("--U", type=float, default=0.2, help="interaction term in the Hamiltonian")
@@ -63,15 +63,15 @@ dmrg_params = {
     "mixer_params": {
         "amplitude": 0.3,
         "decay": 2,
-        "disable_after": 20
+        "disable_after": 50
     },
     "trunc_params": {
-        "chi_max": 100, #bond dimension
+        "chi_max": 500, #bond dimension
         "svd_min": 1*10**-10
     },
     "max_E_err": 0.0001, #energy convergence step threshold
     "max_S_err": 0.0001, #entropy convergence step threshold
-    "max_sweeps": 1000  #may or may not be enough to converge
+    "max_sweeps": 2000  #may or may not be enough to converge
 }
 
 class FermiHubbardSquare(CouplingMPOModel):
