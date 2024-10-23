@@ -1,4 +1,5 @@
 import flax.linen as nn
+#import netket.nn as nn
 import netket as nk
 import netket.experimental as nkx
 from netket.utils.types import NNInitFunc
@@ -20,12 +21,12 @@ class LogSlaterDeterminant(nn.Module):
             self.kernel_init = self.complex_kernel_init
         else:
             self.param_dtype = jnp.float32
-            self.kernel_init = nn.initializers.lecun_normal()
+            self.kernel_init = jax.nn.initializers.lecun_normal()
 
     def complex_kernel_init(self, key, shape, dtype=jnp.complex64):
         """Initializes complex parameters by combining real and imaginary parts."""
-        real_init = nn.initializers.lecun_normal()
-        imag_init = nn.initializers.lecun_normal()
+        real_init = jax.nn.initializers.lecun_normal()
+        imag_init = jax.nn.initializers.lecun_normal()
         key_real, key_imag = jax.random.split(key)
         real = real_init(key_real, shape, dtype=jnp.float32)
         imag = imag_init(key_imag, shape, dtype=jnp.float32)
@@ -66,12 +67,12 @@ class LogNeuralJastrowSlater(nn.Module):
             self.kernel_init = self.complex_kernel_init
         else:
             self.param_dtype = jnp.float32
-            self.kernel_init = nn.initializers.lecun_normal()
+            self.kernel_init = jax.nn.initializers.lecun_normal()
 
     def complex_kernel_init(self, key, shape, dtype=jnp.complex64):
         """Initializes complex parameters by combining real and imaginary parts."""
-        real_init = nn.initializers.lecun_normal()
-        imag_init = nn.initializers.lecun_normal()
+        real_init = jax.nn.initializers.lecun_normal()
+        imag_init = jax.nn.initializers.lecun_normal()
         key_real, key_imag = jax.random.split(key)
         real = real_init(key_real, shape, dtype=jnp.float32)
         imag = imag_init(key_imag, shape, dtype=jnp.float32)
@@ -111,12 +112,12 @@ class LogNeuralBackflow(nn.Module):
             self.kernel_init = self.complex_kernel_init
         else:
             self.param_dtype = jnp.float32
-            self.kernel_init = nn.initializers.lecun_normal()
+            self.kernel_init = jax.nn.initializers.lecun_normal()
 
     def complex_kernel_init(self, key, shape, dtype=jnp.complex64):
         """Initializes complex parameters by combining real and imaginary parts."""
-        real_init = nn.initializers.lecun_normal()
-        imag_init = nn.initializers.lecun_normal()
+        real_init = jax.nn.initializers.lecun_normal()
+        imag_init = jax.nn.initializers.lecun_normal()
         key_real, key_imag = jax.random.split(key)
         real = real_init(key_real, shape, dtype=jnp.float32)
         imag = imag_init(key_imag, shape, dtype=jnp.float32)

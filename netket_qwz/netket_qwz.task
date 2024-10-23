@@ -1,14 +1,15 @@
 L = [4]
 m = [1.0, 2.0, 3.0, 5.0]
+m = [1.0]
 t = [1.0]
 U = [0.0, 1.0, 8.0]
 n_iter = [300]
-learning_rate = [0.001]
+learning_rate = [0.01]
 diag_shift = [0.01]
 n_discard_per_chain = [100]
 n_samples = [8192]
 n_hidden = [32, 128]
 model = ['slater', 'nj', 'nb']
+max_restarts = [3]
 
-
-EXEC('python netket_qwz.py --L={L} --m={m} --t={t} --U={U} --n_hidden={n_hidden} --n_iter={n_iter} --learning_rate={learning_rate} --diag_shift={diag_shift} --n_discard_per_chain={n_discard_per_chain} --n_samples={n_samples} --model={model}')
+EXEC('python netket_qwz.py --L={L} --m={m} --t={t} --U={U} --n_hidden={n_hidden} --n_iter={n_iter} --learning_rate={learning_rate} --diag_shift={diag_shift} --n_discard_per_chain={n_discard_per_chain} --n_samples={n_samples} --model={model} --max_restarts={max_restarts}')

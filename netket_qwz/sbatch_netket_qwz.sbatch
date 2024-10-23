@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH -J nkqwz
-#SBATCH --ntasks=6
+#SBATCH --ntasks=12
 #SBATCH --nodes=6
 #SBATCH --time=96:00:00
 
@@ -11,7 +11,7 @@ source /home1/wttai/miniconda3/etc/profile.d/conda.sh
 
 conda activate netket
 
-srun python3 ~/multirun.py netket_qwz.task
+srun python3 ~/multirun.py netket_qwz.task --unique_output_dir
 
 rm netket_qwz.sync
 

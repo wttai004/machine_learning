@@ -39,6 +39,7 @@ parser.add_argument("--pbc",  dest="pbc", help="periodic boundary conditions", a
 parser.add_argument("--n_hidden", type=int, default=8, help="number of hidden units in the Neural Jastrow/Backflow model")
 parser.add_argument("--n_iter_trial", type=int, default=100, help="number of iterations attempted to check convergence")
 parser.add_argument("--max_restarts", type=int, default=3, help="maximum number of restarts")
+parser.add_argument("--output_dir", type=str, default= "/home1/wttai/machine_learning/netket_qwz/data/", help="output directory")
 args = parser.parse_args()
 
 L = args.L
@@ -56,12 +57,13 @@ n_samples = args.n_samples
 model = args.model
 pbc = args.pbc
 max_restarts = args.max_restarts
+outputDir = args.output_dir
 
 maxVariance = 20
 restart_count = 0  # Counter to track restarts
 converged = False  # Flag to check if the run converged
 
-outputDir = "/home1/wttai/machine_learning/netket_qwz/data/"
+#outputDir = "/home1/wttai/machine_learning/netket_qwz/data/"
 
 print("NetKet version: ", nk.__version__)
 
