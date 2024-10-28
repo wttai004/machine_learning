@@ -19,6 +19,9 @@ log/
 # json files
 *.json
 
+# HDF5 files
+*.h5
+
 # Old results
 QWZ_ed_results/
 
