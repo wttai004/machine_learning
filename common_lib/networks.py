@@ -59,6 +59,7 @@ class LogSlaterDeterminant(nn.Module):
 class LogNeuralJastrowSlater(nn.Module):
     hilbert: nkx.hilbert.SpinOrbitalFermions
     hidden_units: int
+    num_hidden_layers: int = 1
     complex: bool = False  
 
     def setup(self):
@@ -87,8 +88,9 @@ class LogNeuralJastrowSlater(nn.Module):
             M = self.param('M', self.kernel_init, (self.hilbert.size, self.hilbert.n_fermions,), self.param_dtype)
 
             #Construct the Neural Jastrow
-            J = nn.Dense(self.hidden_units, param_dtype=self.param_dtype, kernel_init=self.kernel_init)(n)
-            J = jax.nn.tanh(J)
+            for _ in range(self.num_hidden_layers):
+                J = nn.Dense(self.hidden_units, param_dtype=self.param_dtype, kernel_init=self.kernel_init)(J)
+                J = jax.nn.tanh(J)
             J = J.sum()
             
             # Find the positions of the occupied orbitals
@@ -104,6 +106,7 @@ class LogNeuralJastrowSlater(nn.Module):
 class LogNeuralBackflow(nn.Module):
     hilbert: nkx.hilbert.SpinOrbitalFermions
     hidden_units: int
+    num_hidden_layers: int = 1
     complex: bool = True  # Toggle for complex or real parameters
 
     def setup(self):
@@ -133,8 +136,9 @@ class LogNeuralBackflow(nn.Module):
 
             # Construct the Backflow. Takes as input strings of $N$ occupation numbers, outputs an $N x Nf$ matrix
             # that modifies the bare orbitals.
-            F = nn.Dense(self.hidden_units, param_dtype=self.param_dtype)(n)
-            F = jax.nn.tanh(F)
+            for _ in range(self.num_hidden_layers):
+                F = nn.Dense(self.hidden_units, param_dtype=self.param_dtype)(F)
+                F = jax.nn.tanh(F)
             # last layer, outputs N x Nf values
             F = nn.Dense(self.hilbert.size * self.hilbert.n_fermions, param_dtype=self.param_dtype)(F)
             # reshape into M and add

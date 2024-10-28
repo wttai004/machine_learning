@@ -26,6 +26,7 @@ from argparse import ArgumentParser
 parser = ArgumentParser()
 
 parser.add_argument("--L", type=int, default=2, help="Side of the square")
+parser.add_argument("--N" , type=int, default=-1, help="Number of particles")
 parser.add_argument("--m", type=float, default=5.0, help="mass term in the Hamiltonian")
 parser.add_argument("--t", type=float, default=1.0, help="hopping term in the Hamiltonian")
 parser.add_argument("--U", type=float, default=0.2, help="interaction term in the Hamiltonian")
@@ -37,17 +38,22 @@ parser.add_argument("--n_samples", type=int, default=2**12, help="number of samp
 parser.add_argument("--model", type=str, default="slater", help="model to use: slater or nj")
 parser.add_argument("--pbc",  dest="pbc", help="periodic boundary conditions", action="store_true")
 parser.add_argument("--n_hidden", type=int, default=8, help="number of hidden units in the Neural Jastrow/Backflow model")
+parser.add_argument("--n_hidden_layers", type=int, default=1, help="number of hidden layers in the Neural Jastrow/Backflow model")
 parser.add_argument("--n_iter_trial", type=int, default=100, help="number of iterations attempted to check convergence")
 parser.add_argument("--max_restarts", type=int, default=3, help="maximum number of restarts")
 parser.add_argument("--output_dir", type=str, default= "/home1/wttai/machine_learning/netket_qwz/data/", help="output directory")
 args = parser.parse_args()
 
 L = args.L
-N = L ** 2
+if args.N == -1:
+    N = L ** 2
+else:
+    N = args.N
 m = args.m
 t = args.t
 U = args.U
 n_hidden = args.n_hidden
+n_hidden_layers = args.n_hidden_layers
 n_iter = args.n_iter
 n_iter_trial = args.n_iter_trial
 learning_rate = args.learning_rate
@@ -91,20 +97,20 @@ if model == "slater":
 
     # Create the Slater determinant model
     model = LogSlaterDeterminant(hi, complex = complex)
-    outputFilename=outputDir+f"slater_log_L={L}_t={t}_m={m}_U={U}"
+    outputFilename=outputDir+f"slater_log_L={L}_N={N}_t={t}_m={m}_U={U}"
 
 elif model == "nj":
     print("Using Neural Jastrow-Slater wave function")
     # Create a Neural Jastrow Slater wave function 
-    model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden, complex = complex)
+    model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
     #outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-    outputFilename=outputDir+f"nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
+    outputFilename=outputDir+f"nj_log_L={L}_N={N}_t={t}_m={m}_U={U}_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}"
 
 elif model == "nb":
     print("Using Neural Backflow wave function")
-    model = LogNeuralBackflow(hi, hidden_units=n_hidden, complex = complex)
+    model = LogNeuralBackflow(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
     #outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-    outputFilename=outputDir+f"nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
+    outputFilename=outputDir+f"nb_log_L={L}_N={N}_t={t}_m={m}_U={U}_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}"
 
 else:
     raise ValueError("Invalid model type")
