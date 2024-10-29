@@ -71,10 +71,10 @@ converged = False  # Flag to check if the run converged
 
 #outputDir = "/home1/wttai/machine_learning/netket_qwz/data/"
 
-print("NetKet version: ", nk.__version__)
+print("NetKet version: ", nk.__version__, flush = True)
 
-print(f"Initial parameters: m = {m}, t = {t}, U = {U}")
-print(f"Particle number = {N}, L = {L}, pbc = {pbc}")
+print(f"Initial parameters: m = {m}, t = {t}, U = {U}", flush = True)
+print(f"Particle number = {N}, L = {L}, pbc = {pbc}", flush = True)
 
 graph, hi = get_qwz_graph(L, N = N, pbc = pbc)
 complex=True
@@ -93,27 +93,29 @@ for i in range(N):
     corrs[f"nc{i}nc0"] = corr_func(i)
 
 if model == "slater":
-    print("Using Slater determinant wave function")
+    print("Using Slater determinant wave function", flush = True)
 
     # Create the Slater determinant model
     model = LogSlaterDeterminant(hi, complex = complex)
     outputFilename=outputDir+f"slater_log_L={L}_N={N}_t={t}_m={m}_U={U}"
 
 elif model == "nj":
-    print("Using Neural Jastrow-Slater wave function")
+    print("Using Neural Jastrow-Slater wave function", flush = True)
     # Create a Neural Jastrow Slater wave function 
     model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
     #outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
     outputFilename=outputDir+f"nj_log_L={L}_N={N}_t={t}_m={m}_U={U}_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}"
 
 elif model == "nb":
-    print("Using Neural Backflow wave function")
+    print("Using Neural Backflow wave function", flush = True)
     model = LogNeuralBackflow(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
     #outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
     outputFilename=outputDir+f"nb_log_L={L}_N={N}_t={t}_m={m}_U={U}_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}"
 
 else:
     raise ValueError("Invalid model type")
+
+print(f"Output will be saved to {outputFilename}", flush=True)
 
 # Create the Slater determinant model
 model = LogSlaterDeterminant(hi, complex=complex)
@@ -151,25 +153,25 @@ if max_restarts != -1:
         print(log['Energy']['Variance'])
         # Check if the standard deviation of the energy at the last iteration is too high
         if log['Energy']['Variance'][-1] > maxVariance:
-            print(f"Bad convergence detected. Restarting attempt {restart_count + 1} of {max_restarts}...")
+            print(f"Bad convergence detected. Restarting attempt {restart_count + 1} of {max_restarts}...", flush = True)
             restart_count += 1
         else:
             converged = True
-            print("Good convergence. Continuing with the full run...")
+            print("Good convergence. Continuing with the full run...", flush = True)
     # If the loop exits without good convergence, raise an exception
     if not converged:
-        raise Exception("Failed to converge after 3 attempts. Aborting the run.")
+        raise Exception("Failed to converge after 3 attempts. Aborting the run.", flush = True)
 
 # If converged, run the full simulation
-print("Starting full simulation...")
+print("Starting full simulation...", flush = True)
 # You can extend this part to run the full simulation for more iterations
 gs, log = run_simulation(n_iter = n_iter, gs = -1 if max_restarts == -1 else gs)  # Re-run with the full iteration count
-print("Full simulation completed.")
+print("Full simulation completed.", flush = True)
 
 
-print("All done!")
+print("All done!", flush = True)
 
-print(f"Saving into {outputFilename}")
+print(f"Saving into {outputFilename}", flush = True)
 
 log.serialize(outputFilename)
 
