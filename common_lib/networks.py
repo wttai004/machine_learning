@@ -88,6 +88,7 @@ class LogNeuralJastrowSlater(nn.Module):
             M = self.param('M', self.kernel_init, (self.hilbert.size, self.hilbert.n_fermions,), self.param_dtype)
 
             #Construct the Neural Jastrow
+            J = n
             for _ in range(self.num_hidden_layers):
                 J = nn.Dense(self.hidden_units, param_dtype=self.param_dtype, kernel_init=self.kernel_init)(J)
                 J = jax.nn.tanh(J)
@@ -136,6 +137,7 @@ class LogNeuralBackflow(nn.Module):
 
             # Construct the Backflow. Takes as input strings of $N$ occupation numbers, outputs an $N x Nf$ matrix
             # that modifies the bare orbitals.
+            F = n
             for _ in range(self.num_hidden_layers):
                 F = nn.Dense(self.hidden_units, param_dtype=self.param_dtype)(F)
                 F = jax.nn.tanh(F)
