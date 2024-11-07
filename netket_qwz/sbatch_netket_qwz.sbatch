@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH -J nkqwz
-#SBATCH --ntasks=12
+#SBATCH --ntasks=48
 #SBATCH --nodes=6
 #SBATCH --time=96:00:00
 

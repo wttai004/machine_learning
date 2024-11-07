@@ -41,6 +41,40 @@ def get_qwz_graph(L, L2 = -1, N = -1, pbc = False):
 
     return graph, hi
 
+def get_qwz_exchange_graph(L, L2 = -1, pbc = False):
+    # This defines the exchange graph for the purpose of the Metropolis Exchange algorithm
+    # Unlike the get_qwz_graph, this explicitly considers both orbitals and orbital exchanges (represented as spin flip). 
+    if L2 == -1:
+        L2 = L
+    def index(row, col, s):
+        return s * L * L2 + (row * L + col)
+    edges = []
+
+    # Generate horizontal edges
+    for spin in range(2):
+        for row in range(L2):
+            for col in range(L-1):
+                edges.append([index(row, col, spin), index(row, col+1, spin)])
+            # Wrap-around edge in each row
+            if pbc:
+                edges.append([index(row, L-1, spin), index(row, 0, spin)])
+
+        # Generate vertical edges
+        for col in range(L):
+            for row in range(L2-1):
+                edges.append([index(row, col, spin), index(row+1, col, spin)])
+            # Wrap-around edge in each column
+            if pbc:
+                edges.append([index(L2-1, col, spin), index(0, col, spin)])
+
+    # Add spin flip edges
+    for row in range(L2):
+        for col in range(L):
+            edges.append([index(row, col, 0), index(row, col, 1)])
+    # Define the netket graph object
+    graph = nk.graph.Graph(edges=edges)
+    return graph
+
 def get_hubbard_Ham(hi, graph, t = 1.0, U = 1.0):
     #Note that here, s and p actually means the spins 
     H = 0.0 + 0.0j

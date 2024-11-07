@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import sys, os
 sys.path.append('/Users/wttai/Documents/Jupyter/machine_learning/common_lib')
 sys.path.append('/home1/wttai/machine_learning/common_lib')
-from models import get_qwz_graph, get_qwz_Ham, cdag, c, nc
+from models import get_qwz_graph, get_qwz_Ham, get_qwz_exchange_graph, cdag, c, nc
 from networks import *
 from helper import get_ed_data
 
@@ -65,7 +65,7 @@ pbc = args.pbc
 max_restarts = args.max_restarts
 outputDir = args.output_dir
 
-maxVariance = 20
+maxVariance = 50
 restart_count = 0  # Counter to track restarts
 converged = False  # Flag to check if the run converged
 
@@ -77,6 +77,7 @@ print(f"Initial parameters: m = {m}, t = {t}, U = {U}", flush = True)
 print(f"Particle number = {N}, L = {L}, pbc = {pbc}", flush = True)
 
 graph, hi = get_qwz_graph(L, N = N, pbc = pbc)
+exchange_graph = get_qwz_exchange_graph(L, pbc = pbc)
 complex=True
 
 
@@ -122,7 +123,7 @@ model = LogSlaterDeterminant(hi, complex=complex)
 
 # Define the Metropolis-Hastings sampler
 #sa = nk.sampler.ExactSampler(hi)
-sa = nk.sampler.MetropolisLocal(hi)
+sa = nk.sampler.MetropolisExchange(hi, graph=exchange_graph)
 
 # Define the optimizer
 op = nk.optimizer.Sgd(learning_rate=learning_rate)
