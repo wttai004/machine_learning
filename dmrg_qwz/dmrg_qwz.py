@@ -49,33 +49,6 @@ if L != -1:
     Lx = L
     Ly = L
 
-# Create the Fermi-Hubbard Model
-model_params = {
-    't': t,                 # Nearest-neighbor hopping strength
-    'U': U,                 # On-site Hubbard interaction
-    'm': m,                 # Mass gap
-    'Lx': Lx,
-    'Ly': Ly,
-    'cons_Sz': None,
-    'cons_N': 'N',
-}
-
-dmrg_params = {
-    "mixer": DensityMatrixMixer,
-    "mixer_params": {
-        "amplitude": 0.3,
-        "decay": 2,
-        "disable_after": 50
-    },
-    "trunc_params": {
-        "chi_max": 500, #bond dimension
-        "svd_min": 1*10**-10
-    },
-    "max_E_err": 0.0001, #energy convergence step threshold
-    "max_S_err": 0.0001, #entropy convergence step threshold
-    "max_sweeps": 2000  #may or may not be enough to converge
-}
-
 class FermiHubbardSquare(CouplingMPOModel):
     
     def init_sites(self, model_params):
@@ -111,12 +84,36 @@ class FermiHubbardSquare(CouplingMPOModel):
                 self.add_coupling(-t, i1, "Cdd", i2, "Cu", dx, plus_hc=True)        
 
 
+# Create the Fermi-Hubbard Model
+model_params = {
+    't': t,                 # Nearest-neighbor hopping strength
+    'U': U,                 # On-site Hubbard interaction
+    'm': m,                 # Mass gap
+    'Lx': Lx,
+    'Ly': Ly,
+    'cons_Sz': None,
+    'cons_N': 'N',
+}
+
+dmrg_params = {
+    "mixer": DensityMatrixMixer,
+    "mixer_params": {
+        "amplitude": 0.3,
+        "decay": 2,
+        "disable_after": 50
+    },
+    "trunc_params": {
+        "chi_max": 500, #bond dimension
+        "svd_min": 1*10**-10
+    },
+    "max_E_err": 0.0001, #energy convergence step threshold
+    "max_S_err": 0.0001, #entropy convergence step threshold
+    "max_sweeps": 2000  #may or may not be enough to converge
+}
+
 model = FermiHubbardSquare(model_params)
 H_mpo = model.calc_H_MPO()
 print(f'MPO bond dimensions: {H_mpo.chi}')
-
-
-
 
 product_state = [ 'down' for n in range(Lx * Ly) ]
 psi = MPS.from_product_state(model.lat.mps_sites(), product_state, bc=model.lat.bc_MPS)
@@ -129,8 +126,10 @@ print(f'Ground state energy: {E0}')
 data = {"psi": psi,  # e.g. an MPS
         "E0": E0,  # ground state energy
         "model": model,
+        "chi": psi.chi,
         "sweepstats": engine.sweep_stats,
-        "parameters": {"L": Lx * Ly, "t": t, "U": U, "m": m}
+        "model_params": model_params,
+        "dmrg_params": dmrg_params
 }
 
 with h5py.File(outputFilename, 'w') as f:

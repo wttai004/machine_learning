@@ -2,5 +2,6 @@ L = [2, 4]
 m = [1.0, 2.0, 3.0, 5.0]
 t = [1.0]
 U = [0.0, 1.0, 2.0, 4.0, 8.0]
+chi_max = [1000]
 
-EXEC('python dmrg_qwz.py --L={L} --m={m} --t={t} --U={U}')
+EXEC('python dmrg_qwz.py --L={L} --m={m} --t={t} --U={U} --chi_max={chi_max}')
