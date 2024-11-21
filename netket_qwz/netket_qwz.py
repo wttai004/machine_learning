@@ -107,20 +107,20 @@ if model == "slater":
 
     # Create the Slater determinant model
     model = LogSlaterDeterminant(hi, complex = complex)
-    outputFilename=outputDir+f"slater_log_L={L}_N={N}_t={t}_m={m}_U={U}"
+    outputFilename=outputDir+f"slater_log_{"pbc" if pbc else "obc"}_L={L}_N={N}_t={t}_m={m}_U={U}"
 
 elif model == "nj":
     print("Using Neural Jastrow-Slater wave function", flush = True)
     # Create a Neural Jastrow Slater wave function 
     model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
     #outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-    outputFilename=outputDir+f"nj_log_L={L}_N={N}_t={t}_m={m}_U={U}_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}"
+    outputFilename=outputDir+f"nj_log_{"pbc" if pbc else "obc"}_L={L}_N={N}_t={t}_m={m}_U={U}_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}"
 
 elif model == "nb":
     print("Using Neural Backflow wave function", flush = True)
     model = LogNeuralBackflow(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
     #outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-    outputFilename=outputDir+f"nb_log_L={L}_N={N}_t={t}_m={m}_U={U}_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}"
+    outputFilename=outputDir+f"nb_log_{"pbc" if pbc else "obc"}_L={L}_N={N}_t={t}_m={m}_U={U}_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}"
 
 else:
     raise ValueError("Invalid model type")

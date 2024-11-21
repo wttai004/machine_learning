@@ -21,6 +21,10 @@ from tenpy.tools import hdf5_io
 
 from argparse import ArgumentParser
 
+import sys, os
+sys.path.append('/home1/wttai/machine_learning/common_lib')
+from dmrg_correlation_helper import compute_corr_results
+
 parser = ArgumentParser()
 
 parser.add_argument("--L", type=int, default=2, help="Side of the square")
@@ -32,6 +36,7 @@ parser.add_argument("--m", type=float, default=5.0, help="mass term in the Hamil
 parser.add_argument("--t", type=float, default=1.0, help="hopping term in the Hamiltonian")
 parser.add_argument("--U", type=float, default=0.2, help="interaction term in the Hamiltonian")
 parser.add_argument("--chi_max", type=int, default=1000, help="maximum bond dimension")
+parser.add_argument("--pbc",  dest="pbc", help="periodic boundary conditions", action="store_true")
 parser.add_argument("--output_dir" , type=str, default="data/", help="output directory")
 
 args = parser.parse_args()
@@ -46,6 +51,7 @@ U = args.U
 N = args.N
 N_frac = args.N_frac
 chi_max = args.chi_max
+pbc = args.pbc
 output_dir = args.output_dir
 
 if L != -1:
@@ -64,11 +70,10 @@ if N > Lx * Ly:
     raise ValueError("Current code is not good for more than half-filling")
 
 print(f"Initial parameters: m = {m}, t = {t}, U = {U}")
-outputFilename = output_dir + f"dmrg_log_L={L}_N={N}_t={t}_m={m}_U={U}.h5"
+outputFilename = output_dir + f"dmrg_log_{"pbc" if pbc else "obc"}_L={L}_N={N}_t={t}_m={m}_U={U}.h5"
 
 
 class FermiHubbardSquare(CouplingMPOModel):
-    
     def init_sites(self, model_params):
         cons_N = model_params.get('cons_N', 'N', str)
         cons_Sz = model_params.get('cons_Sz', 'Sz', str)
@@ -79,7 +84,9 @@ class FermiHubbardSquare(CouplingMPOModel):
         site = self.init_sites(model_params)
         Lx = model_params.get('Lx', 4)
         Ly = model_params.get('Ly', 4)
-        return Square(Lx=Lx, Ly=Ly, site=site)
+        bc_x = model_params.get('bc_x', 'open', str)
+        bc_y = model_params.get('bc_y', 'open', str)
+        return Square(Lx=Lx, Ly=Ly, site=site, bc = [bc_x, bc_y])
 
     def init_terms(self, model_params):
         # read out parameters
@@ -111,6 +118,8 @@ model_params = {
     'Ly': Ly,
     'cons_Sz': None,
     'cons_N': 'N',
+    'bc_x': 'periodic' if pbc else 'open',
+    'bc_y': 'periodic' if pbc else 'open'
 }
 
 dmrg_params = {
@@ -142,13 +151,25 @@ engine = dmrg.TwoSiteDMRGEngine(psi, model, dmrg_params)
 E0, psi = engine.run()
 print(f'Ground state energy: {E0}')
 
+correlation_types = {
+    "uu": ("Nu", "Nu"),
+    "ud": ("Nu", "Nd"),
+    "dd": ("Nd", "Nd")
+}
+
+# Compute and store correlation results
+corrs_results = {}
+for label, corr_type in correlation_types.items():
+    corrs_results[label] = compute_corr_results(corr_type, psi, Lx, Ly)
+
 data = {"psi": psi,  # e.g. an MPS
         "E0": E0,  # ground state energy
         "model": model,
         "chi": psi.chi,
         "sweepstats": engine.sweep_stats,
         "model_params": model_params,
-        "dmrg_params": dmrg_params
+        "dmrg_params": dmrg_params,
+        "corrs_results": corrs_results
 }
 
 with h5py.File(outputFilename, 'w') as f:
