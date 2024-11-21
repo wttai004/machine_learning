@@ -27,6 +27,7 @@ parser = ArgumentParser()
 
 parser.add_argument("--L", type=int, default=2, help="Side of the square")
 parser.add_argument("--N" , type=int, default=-1, help="Number of particles")
+parser.add_argument("--N_frac", type=float, default=-1, help="Fraction of particles (default to half-filling)")
 parser.add_argument("--m", type=float, default=5.0, help="mass term in the Hamiltonian")
 parser.add_argument("--t", type=float, default=1.0, help="hopping term in the Hamiltonian")
 parser.add_argument("--U", type=float, default=0.2, help="interaction term in the Hamiltonian")
@@ -45,10 +46,18 @@ parser.add_argument("--output_dir", type=str, default= "/home1/wttai/machine_lea
 args = parser.parse_args()
 
 L = args.L
-if args.N == -1:
-    N = L ** 2
-else:
-    N = args.N
+N = args.N
+N_frac = args.N_frac
+if N != -1 and N_frac != -1:
+    raise ValueError("Cannot specify both N and N_frac")
+if N == -1 and N_frac == -1:
+    N = L**2
+if N_frac != -1:
+    N = int(2 * N_frac * L**2)
+
+if N > L**2:
+    raise ValueError("Current code is not good for more than half-filling")
+
 m = args.m
 t = args.t
 U = args.U

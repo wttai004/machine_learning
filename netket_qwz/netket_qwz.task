@@ -1,5 +1,5 @@
-L = [6]
-N = [-1]
+L = [2,4]
+N_frac = [1/4]
 m = [5.0]
 t = [1.0]
 U = [0.0, 1.0, 2.0, 4.0, 8.0]
@@ -13,4 +13,4 @@ n_hidden_layers = [1, 2]
 model = ['slater', 'nj', 'nb']
 max_restarts = [3]
 
-EXEC('python netket_qwz.py --L={L} --N={N} --m={m} --t={t} --U={U} --n_hidden={n_hidden} --n_hidden_layers={n_hidden_layers} --n_iter={n_iter} --learning_rate={learning_rate} --diag_shift={diag_shift} --n_discard_per_chain={n_discard_per_chain} --n_samples={n_samples} --model={model} --max_restarts={max_restarts}')
+EXEC('python netket_qwz.py --L={L} --N_frac={N_frac} --m={m} --t={t} --U={U} --n_hidden={n_hidden} --n_hidden_layers={n_hidden_layers} --n_iter={n_iter} --learning_rate={learning_rate} --diag_shift={diag_shift} --n_discard_per_chain={n_discard_per_chain} --n_samples={n_samples} --model={model} --max_restarts={max_restarts}')

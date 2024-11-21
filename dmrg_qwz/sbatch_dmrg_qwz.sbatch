@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH -J dmrgqwz
-#SBATCH --ntasks=20
+#SBATCH --ntasks=4
 #SBATCH --nodes=1
 #SBATCH --time=48:00:00
 

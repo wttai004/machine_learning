@@ -26,9 +26,12 @@ parser = ArgumentParser()
 parser.add_argument("--L", type=int, default=2, help="Side of the square")
 parser.add_argument("--Lx", type=int, default=2, help="Side of the rectangle in the x direction (if L is not specified)")
 parser.add_argument("--Ly", type=int, default=2, help="Side of the rectangle in the y direction (if L is not specified)")
+parser.add_argument("--N" , type=int, default=-1, help="Number of particles (default to half-filling)")
+parser.add_argument("--N_frac", type=float, default=-1, help="Fraction of particles (default to half-filling)")
 parser.add_argument("--m", type=float, default=5.0, help="mass term in the Hamiltonian")
 parser.add_argument("--t", type=float, default=1.0, help="hopping term in the Hamiltonian")
 parser.add_argument("--U", type=float, default=0.2, help="interaction term in the Hamiltonian")
+parser.add_argument("--chi_max", type=int, default=1000, help="maximum bond dimension")
 parser.add_argument("--output_dir" , type=str, default="data/", help="output directory")
 
 args = parser.parse_args()
@@ -40,14 +43,29 @@ Ly = args.Ly
 m = args.m
 t = args.t
 U = args.U
+N = args.N
+N_frac = args.N_frac
+chi_max = args.chi_max
 output_dir = args.output_dir
-
-print(f"Initial parameters: m = {m}, t = {t}, U = {U}")
-outputFilename = output_dir + f"dmrg_log_L={L}_t={t}_m={m}_U={U}.h5"
 
 if L != -1:
     Lx = L
     Ly = L
+
+
+if N != -1 and N_frac != -1:
+    raise ValueError("Cannot specify both N and N_frac")
+if N == -1 and N_frac == -1:
+    N = Lx * Ly
+if N_frac != -1:
+    N = int(2 * N_frac * Lx * Ly)
+
+if N > Lx * Ly:
+    raise ValueError("Current code is not good for more than half-filling")
+
+print(f"Initial parameters: m = {m}, t = {t}, U = {U}")
+outputFilename = output_dir + f"dmrg_log_L={L}_N={N}_t={t}_m={m}_U={U}.h5"
+
 
 class FermiHubbardSquare(CouplingMPOModel):
     
@@ -103,7 +121,7 @@ dmrg_params = {
         "disable_after": 50
     },
     "trunc_params": {
-        "chi_max": 500, #bond dimension
+        "chi_max": chi_max, #bond dimension
         "svd_min": 1*10**-10
     },
     "max_E_err": 0.0001, #energy convergence step threshold
@@ -115,7 +133,8 @@ model = FermiHubbardSquare(model_params)
 H_mpo = model.calc_H_MPO()
 print(f'MPO bond dimensions: {H_mpo.chi}')
 
-product_state = [ 'down' for n in range(Lx * Ly) ]
+product_state = ['up' if n < N else 'empty' for n in range(Lx*Ly)]#['empty' if n < Lx * Ly // 2 else 'up' for n in range(Lx * Ly)]
+#product_state = [ 'down' for n in range(Lx * Ly) ]
 psi = MPS.from_product_state(model.lat.mps_sites(), product_state, bc=model.lat.bc_MPS)
 
 engine = dmrg.TwoSiteDMRGEngine(psi, model, dmrg_params)
