@@ -31,7 +31,7 @@ parser.add_argument("--N_frac", type=float, default=-1, help="Fraction of partic
 parser.add_argument("--m", type=float, default=5.0, help="mass term in the Hamiltonian")
 parser.add_argument("--t", type=float, default=1.0, help="hopping term in the Hamiltonian")
 parser.add_argument("--U", type=float, default=0.2, help="interaction term in the Hamiltonian")
-parser.add_argument("--n_iter", type=int, default=300, help="number of iterations")
+parser.add_argument("--n_iter", type=int, default=50, help="number of iterations")
 parser.add_argument("--learning_rate", type=float, default=0.01, help="learning rate")
 parser.add_argument("--diag_shift", type=float, default=0.01, help="diagonal shift in the Stochastic Reconfiguration method")
 parser.add_argument("--n_discard_per_chain", type=int, default=16, help="number of samples to discard per chain")
@@ -41,7 +41,7 @@ parser.add_argument("--pbc",  dest="pbc", help="periodic boundary conditions", a
 parser.add_argument("--n_hidden", type=int, default=8, help="number of hidden units in the Neural Jastrow/Backflow model")
 parser.add_argument("--n_hidden_layers", type=int, default=1, help="number of hidden layers in the Neural Jastrow/Backflow model")
 parser.add_argument("--n_iter_trial", type=int, default=100, help="number of iterations attempted to check convergence")
-parser.add_argument("--max_restarts", type=int, default=3, help="maximum number of restarts")
+parser.add_argument("--max_restarts", type=int, default=-1, help="maximum number of restarts")
 parser.add_argument("--output_dir", type=str, default= "/home1/wttai/machine_learning/netket_qwz/data/", help="output directory")
 args = parser.parse_args()
 
@@ -69,7 +69,7 @@ learning_rate = args.learning_rate
 diag_shift = args.diag_shift
 n_discard_per_chain = args.n_discard_per_chain
 n_samples = args.n_samples
-model = args.model
+model_name = args.model
 pbc = args.pbc
 max_restarts = args.max_restarts
 outputDir = args.output_dir
@@ -102,25 +102,29 @@ corrs = {}
 for i in range(N):
     corrs[f"nc{i}nc0"] = corr_func(i)
 
-if model == "slater":
-    print("Using Slater determinant wave function", flush = True)
+physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}/"
 
+if model_name == "slater":
+    print("Using Slater determinant wave function", flush = True)
     # Create the Slater determinant model
     model = LogSlaterDeterminant(hi, complex = complex)
-    outputFilename=outputDir+f"slater_log_{"pbc" if pbc else "obc"}_L={L}_N={N}_t={t}_m={m}_U={U}"
+    outputFilename=outputDir + physicalSystemDir + f"slater_log_n_samples={n_samples}"
+    os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
 
-elif model == "nj":
+elif model_name == "nj":
     print("Using Neural Jastrow-Slater wave function", flush = True)
     # Create a Neural Jastrow Slater wave function 
     model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
     #outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-    outputFilename=outputDir+f"nj_log_{"pbc" if pbc else "obc"}_L={L}_N={N}_t={t}_m={m}_U={U}_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}"
+    outputFilename=outputDir + physicalSystemDir + f"nj_log_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}_n_samples={n_samples}"
+    os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
 
-elif model == "nb":
+elif model_name == "nb":
     print("Using Neural Backflow wave function", flush = True)
     model = LogNeuralBackflow(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
     #outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-    outputFilename=outputDir+f"nb_log_{"pbc" if pbc else "obc"}_L={L}_N={N}_t={t}_m={m}_U={U}_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}"
+    outputFilename=outputDir + physicalSystemDir + f"nb_log_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}_n_samples={n_samples}"
+    os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
 
 else:
     raise ValueError("Invalid model type")
@@ -189,17 +193,21 @@ runtimeData = json.load(open(outputFilename + ".json"))
 
 metaData = {
     'L': L,
+    'N': N,
     'm': m,
     't': t,
     'U': U,
     'n_hidden': n_hidden,
+    'n_hidden_layers': n_hidden_layers,
+    'n_iter_trial': n_iter_trial,
     'n_iter': n_iter,
     'learning_rate': learning_rate,
     'diag_shift': diag_shift,
     'n_discard_per_chain': n_discard_per_chain,
     'n_samples': n_samples, 
     'pbc': pbc,
-    'timestamp': time.strftime("%Y-%m-%d %H:%M:%S")
+    'model': model_name,
+    'timestamp': time.strftime("%Y-%m-%d %H:%M:%S"),
 }
 
 mergedData = {
