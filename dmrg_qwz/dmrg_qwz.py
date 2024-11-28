@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import logging
 logging.basicConfig(level=logging.INFO)
 import h5py
+import time
 from tenpy.tools import hdf5_io
 
 from argparse import ArgumentParser
@@ -162,15 +163,42 @@ corrs_results = {}
 for label, corr_type in correlation_types.items():
     corrs_results[label] = compute_corr_results(corr_type, psi, Lx, Ly)
 
+
+
 data = {"psi": psi,  # e.g. an MPS
         "E0": E0,  # ground state energy
         "model": model,
         "chi": psi.chi,
         "sweepstats": engine.sweep_stats,
-        "model_params": model_params,
-        "dmrg_params": dmrg_params,
         "corrs_results": corrs_results
 }
 
+metaData = {
+    'L': L,
+    'N': N,
+    'm': m,
+    't': t,
+    'U': U,
+    'pbc': pbc,
+    "mixer_params": {
+        "amplitude": 0.3,
+        "decay": 2,
+        "disable_after": 50
+    },
+    "trunc_params": {
+        "chi_max": chi_max, #bond dimension
+        "svd_min": 1*10**-10
+    },
+    "max_E_err": 0.0001, #energy convergence step threshold
+    "max_S_err": 0.0001, #entropy convergence step threshold
+    "max_sweeps": 2000,  #may or may not be enough to converge
+    'timestamp': time.strftime("%Y-%m-%d %H:%M:%S")
+}
+
+mergedData = {
+    'metadata': metaData,
+    'data': data
+}
+
 with h5py.File(outputFilename, 'w') as f:
-    hdf5_io.save_to_hdf5(f, data)
+    hdf5_io.save_to_hdf5(f, mergedData)

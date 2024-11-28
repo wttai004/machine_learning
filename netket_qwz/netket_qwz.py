@@ -99,7 +99,7 @@ def corr_func(i):
     #return cdag_(hi, i, s) * c_(hi, 0, s) + cdag_(hi, i, p) * c_(hi, 0, p)
 
 corrs = {}
-for i in range(N):
+for i in range(L**2):
     corrs[f"nc{i}nc0"] = corr_func(i)
 
 physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}/"
