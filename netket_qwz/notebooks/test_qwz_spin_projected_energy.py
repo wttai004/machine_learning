@@ -1,0 +1,1 @@
+/home1/wttai/common_lib/test/test_qwz_spin_projected_energy.py

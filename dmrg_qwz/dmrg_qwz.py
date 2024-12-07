@@ -39,6 +39,7 @@ parser.add_argument("--U", type=float, default=0.2, help="interaction term in th
 parser.add_argument("--chi_max", type=int, default=1000, help="maximum bond dimension")
 parser.add_argument("--pbc",  dest="pbc", help="periodic boundary conditions", action="store_true")
 parser.add_argument("--output_dir" , type=str, default="data/", help="output directory")
+parser.add_argument("--bias", type=float, default=1e-5, help="bias term in the Hamiltonian")
 
 args = parser.parse_args()
 
@@ -54,6 +55,7 @@ N_frac = args.N_frac
 chi_max = args.chi_max
 pbc = args.pbc
 output_dir = args.output_dir
+bias = args.bias
 
 if L != -1:
     Lx = L
@@ -93,7 +95,8 @@ class FermiHubbardSquare(CouplingMPOModel):
         # read out parameters
         t = model_params.get("t", 1.) 
         Uv = model_params.get("U", 1.)
-        m = model_params.get("m", 1)
+        m = model_params.get("m", 1.)
+        bias = model_params.get("bias", 0.)
         # add terms
         for u in range(len(self.lat.unit_cell)):
             self.add_onsite(Uv, u, 'NuNd')
@@ -107,7 +110,8 @@ class FermiHubbardSquare(CouplingMPOModel):
                 self.add_coupling(1j * t, i1, "Cdd", i2, "Cu", dx, plus_hc=True)
             if np.array_equal(dx, [0,1]):
                 self.add_coupling(t, i1, "Cdu", i2, "Cd", dx, plus_hc=True)
-                self.add_coupling(-t, i1, "Cdd", i2, "Cu", dx, plus_hc=True)        
+                self.add_coupling(-t, i1, "Cdd", i2, "Cu", dx, plus_hc=True) 
+        self.add_local_term(bias, [("Nd", [0,0,0])], 0)       
 
 
 # Create the Fermi-Hubbard Model
@@ -120,7 +124,8 @@ model_params = {
     'cons_Sz': None,
     'cons_N': 'N',
     'bc_x': 'periodic' if pbc else 'open',
-    'bc_y': 'periodic' if pbc else 'open'
+    'bc_y': 'periodic' if pbc else 'open', 
+    'bias': bias
 }
 
 dmrg_params = {
@@ -179,6 +184,7 @@ metaData = {
     'm': m,
     't': t,
     'U': U,
+    'bias': bias,
     'pbc': pbc,
     "mixer_params": {
         "amplitude": 0.3,

@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import json
 import time
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 import sys, os
 sys.path.append('/Users/wttai/Documents/Jupyter/machine_learning/common_lib')
@@ -43,6 +44,7 @@ parser.add_argument("--n_hidden_layers", type=int, default=1, help="number of hi
 parser.add_argument("--n_iter_trial", type=int, default=100, help="number of iterations attempted to check convergence")
 parser.add_argument("--max_restarts", type=int, default=-1, help="maximum number of restarts")
 parser.add_argument("--output_dir", type=str, default= "/home1/wttai/machine_learning/netket_qwz/data/", help="output directory")
+parser.add_argument("--bias", type=float, default=1e-5, help="bias term in the Hamiltonian")
 args = parser.parse_args()
 
 L = args.L
@@ -61,6 +63,7 @@ if N > L**2:
 m = args.m
 t = args.t
 U = args.U
+bias = args.bias
 n_hidden = args.n_hidden
 n_hidden_layers = args.n_hidden_layers
 n_iter = args.n_iter
@@ -82,6 +85,9 @@ converged = False  # Flag to check if the run converged
 
 print("NetKet version: ", nk.__version__, flush = True)
 
+timestamp = datetime.now().strftime('%Y%m%d_%H%M')
+print(f"Starting run at {timestamp}", flush = True)
+
 print(f"Initial parameters: m = {m}, t = {t}, U = {U}", flush = True)
 print(f"Particle number = {N}, L = {L}, pbc = {pbc}", flush = True)
 
@@ -90,7 +96,7 @@ exchange_graph = get_qwz_exchange_graph(L, pbc = pbc)
 complex=True
 
 
-H = get_qwz_Ham(hi, graph, m = m, t = t, U = U)
+H = get_qwz_Ham(hi, graph, m = m, t = t, U = U, bias = bias)
 
 s, p = 1, -1
 
@@ -197,6 +203,7 @@ metaData = {
     'm': m,
     't': t,
     'U': U,
+    'bias': bias,
     'n_hidden': n_hidden,
     'n_hidden_layers': n_hidden_layers,
     'n_iter_trial': n_iter_trial,

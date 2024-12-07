@@ -1,7 +1,8 @@
 #!/bin/bash
 
 #SBATCH -J dmrgqwz
-#SBATCH --ntasks=4
+#SBATCH --ntasks=1
+#SBTACH --cpus-per-task=128
 #SBATCH --nodes=1
 #SBATCH --time=48:00:00
 

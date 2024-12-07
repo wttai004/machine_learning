@@ -21,7 +21,7 @@ def get_qwz_graph(L, L2 = -1, N = -1, pbc = False):
             edge_colors.append([index(row, col), index(row, col+1), 1])
         # Wrap-around edge in each row
         if pbc:
-            edge_colors.append([index(row, L-1), index(row, 0), 1])
+            edge_colors.append([index(row, L-1), index(row, 0), 3])
 
     # Generate vertical edges
     for col in range(L):
@@ -29,7 +29,7 @@ def get_qwz_graph(L, L2 = -1, N = -1, pbc = False):
             edge_colors.append([index(row, col), index(row+1, col), 2])
         # Wrap-around edge in each column
         if pbc:
-            edge_colors.append([index(L2-1, col), index(0, col), 2])
+            edge_colors.append([index(L2-1, col), index(0, col), 4])
     # Define the netket graph object
     graph = nk.graph.Graph(edges=edge_colors)
 
@@ -86,7 +86,7 @@ def get_hubbard_Ham(hi, graph, t = 1.0, U = 1.0):
         H += U * (nc(hi, i, 1) + nc(hi, i, -1) - 1) * (nc(hi, i, 1) + nc(hi, i, -1) - 1)
     return H
 
-def get_qwz_Ham(hi, graph, m = 1.0, t = 1.0, U = 1.0):
+def get_qwz_Ham(hi, graph, m = 1.0, t = 1.0, U = 1.0, bias = 0.0):
     s, p = 1, -1
 
     H = 0.0 + 0.0j
@@ -105,8 +105,20 @@ def get_qwz_Ham(hi, graph, m = 1.0, t = 1.0, U = 1.0):
             # y direction hopping
             H += t * (cdag(hi, i, s) * c(hi, j, p) + cdag(hi, j, p) * c(hi, i, s)
                      - cdag(hi, i, p) * c(hi, j, s) - cdag(hi, j, s) * c(hi, i, p))
+        elif color == 3:
+            # x direction hopping for periodic boundary condition
+            H += 1j * t * (cdag(hi, j, s) * c(hi, i, p) - cdag(hi, i, p) * c(hi, j, s)
+                + cdag(hi, j, p) * c(hi, i, s) - cdag(hi, i, s) * c(hi, j, p))
+            
+        elif color == 4:
+            # y direction hopping for periodic boundary condition
+            H += t * (cdag(hi, j, s) * c(hi, i, p) + cdag(hi, i, p) * c(hi, j, s)
+                     - cdag(hi, j, p) * c(hi, i, s) - cdag(hi, i, s) * c(hi, j, p))
+
         else:
             raise ValueError("Invalid color")
+        
+    H += bias * nc(hi, 0, p)
     return H
 
 def get_debug_Ham(hi, graph, m = 1.0, t = 1.0, U = 1.0):
