@@ -3,7 +3,7 @@ N_frac = [1/4]
 m = [1.0, 2.0, 3.0, 5.0]
 t = [1.0]
 U = [0.0, 1.0, 2.0, 4.0, 8.0]
-chi_max = [1000]
+chi_max = [1000, 2000]
 pbc = ["--pbc"]
 
 EXEC('python dmrg_qwz.py {pbc} --L={L} --N_frac={N_frac} --m={m} --t={t} --U={U} --chi_max={chi_max}')

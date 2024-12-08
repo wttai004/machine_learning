@@ -73,7 +73,11 @@ if N > Lx * Ly:
     raise ValueError("Current code is not good for more than half-filling")
 
 print(f"Initial parameters: m = {m}, t = {t}, U = {U}")
-outputFilename = output_dir + f"dmrg_log_{"pbc" if pbc else "obc"}_L={L}_N={N}_t={t}_m={m}_U={U}.h5"
+
+physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}/"
+
+outputFilename=output_dir + physicalSystemDir + f"dmrg_log_chi_max={chi_max}.h5"
+os.makedirs(output_dir + physicalSystemDir, exist_ok=True)
 
 
 class FermiHubbardSquare(CouplingMPOModel):

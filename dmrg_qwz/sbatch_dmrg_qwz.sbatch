@@ -1,10 +1,11 @@
 #!/bin/bash
 
 #SBATCH -J dmrgqwz
-#SBATCH --ntasks=1
+#SBATCH --ntasks=3
 #SBTACH --cpus-per-task=128
-#SBATCH --nodes=1
-#SBATCH --time=48:00:00
+#SBATCH --nodes=3
+#SBATCH --time=96:00:00
+#SBATCH --partition=highmem
 
 module load gcc mkl
 
