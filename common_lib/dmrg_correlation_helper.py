@@ -1,6 +1,6 @@
 import numpy as np
 
-def compute_corr_sum(corrs, delta_x, delta_y, Lx, Ly):
+def compute_corr_sum(corrs, delta_x, delta_y, Lx, Ly, pbc = False):
     """
     Compute the correlation function between two operators separated by a distance delta_x, delta_y
 
@@ -22,16 +22,18 @@ def compute_corr_sum(corrs, delta_x, delta_y, Lx, Ly):
     result = 0
     for i in range(Lx):
         for j in range(Ly):
-            if i + delta_x >= Lx or j + delta_y >= Ly:
-                continue
-            result += corrs[index(i,j)][index(i+delta_x,j+delta_y)]
+            if pbc == False:
+                if i + delta_x >= Lx or j + delta_y >= Ly:
+                    continue
+            result += corrs[index(i,j)][index((i+delta_x) % Lx,(j+delta_y) % Ly)]
     return result
 
-def compute_corr_results(corr_type, psi, Lx, Ly):
+def compute_corr_results(corr_type, psi, Lx, Ly, pbc = False):
     """
     Compute the correlation results for a specific type of correlation function.
 
     Parameters:
+    corr_type: tuple of (op1, op2) wher
     op1, op2: string representing the operator type
     psi: object containing the correlation function method
     Lx: number of sites in x direction
@@ -41,7 +43,7 @@ def compute_corr_results(corr_type, psi, Lx, Ly):
     corr_result: 2D numpy array of correlation sums
     """
     corrs = psi.correlation_function(*corr_type)
-    corr_result = np.array([[compute_corr_sum(corrs, i, j, Lx, Ly) for j in range(Ly)] for i in range(Lx)])
+    corr_result = np.array([[compute_corr_sum(corrs, i, j, Lx, Ly, pbc = pbc) for j in range(Ly)] for i in range(Lx)])
     return corr_result
 
 

@@ -100,13 +100,30 @@ H = get_qwz_Ham(hi, graph, m = m, t = t, U = U, bias = bias)
 
 s, p = 1, -1
 
-def corr_func(i):
-    return nc(hi, i, s) * nc(hi, 0, s) + nc(hi, i, p) * nc(hi, 0, p)
-    #return cdag_(hi, i, s) * c_(hi, 0, s) + cdag_(hi, i, p) * c_(hi, 0, p)
+def lattice_index(i, j):
+    return i * L + j
 
-corrs = {}
+def corr_func(i, o0, o1):
+    delta_x = i // L
+    delta_y = i % L
+    sum_correlation = 0
+    for i in range(L):
+        for j in range(L):
+            site0 = lattice_index(i, j)
+            if pbc == False:
+                if i + delta_x >= L or j + delta_y >= L:
+                    continue
+            site1 = lattice_index((i + delta_x) % L, (j + delta_y) % L)
+            sum_correlation += nc(hi, site0, o0)*nc(hi, site1, o1)
+    return sum_correlation
+
+dummy_array = [0 for i in range(L**2)]
+corrs = {'ss': dummy_array, 'sp': dummy_array, 'pp': dummy_array}
 for i in range(L**2):
-    corrs[f"nc{i}nc0"] = corr_func(i)
+    corrs['ss'][i] = corr_func(i, s, s)
+    corrs['sp'][i] = corr_func(i, s, p)
+    corrs['pp'][i] = corr_func(i, p, p)
+    #corrs[f"nc{i}nc0"] = corr_func(i)
 
 physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}/"
 

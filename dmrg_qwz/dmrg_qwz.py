@@ -170,7 +170,7 @@ correlation_types = {
 # Compute and store correlation results
 corrs_results = {}
 for label, corr_type in correlation_types.items():
-    corrs_results[label] = compute_corr_results(corr_type, psi, Lx, Ly)
+    corrs_results[label] = compute_corr_results(corr_type, psi, Lx, Ly, pbc = pbc)
 
 
 
