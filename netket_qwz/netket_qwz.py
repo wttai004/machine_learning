@@ -13,7 +13,8 @@ from datetime import datetime
 import sys, os
 sys.path.append('/Users/wttai/Documents/Jupyter/machine_learning/common_lib')
 sys.path.append('/home1/wttai/machine_learning/common_lib')
-from models import get_qwz_graph, get_qwz_Ham, get_qwz_exchange_graph, cdag, c, nc
+#from models_old import get_qwz_graph, get_qwz_Ham, get_qwz_exchange_graph, cdag, c, nc
+from netket_qwz_system import NetketQWZSystem
 from networks import *
 from helper import get_ed_data
 
@@ -91,40 +92,28 @@ print(f"Starting run at {timestamp}", flush = True)
 print(f"Initial parameters: m = {m}, t = {t}, U = {U}", flush = True)
 print(f"Particle number = {N}, L = {L}, pbc = {pbc}", flush = True)
 
-graph, hi = get_qwz_graph(L, N = N, pbc = pbc)
-exchange_graph = get_qwz_exchange_graph(L, pbc = pbc)
+
+
 complex=True
-
-
-H = get_qwz_Ham(hi, graph, m = m, t = t, U = U, bias = bias)
-
 s, p = 1, -1
 
-def lattice_index(i, j):
-    return i * L + j
+args = {'U': U, 't': t, 'm': m, 'bias': bias}
 
-def corr_func(i, o0, o1):
-    delta_x = i // L
-    delta_y = i % L
-    sum_correlation = 0
-    for i in range(L):
-        for j in range(L):
-            site0 = lattice_index(i, j)
-            if pbc == False:
-                if i + delta_x >= L or j + delta_y >= L:
-                    continue
-            site1 = lattice_index((i + delta_x) % L, (j + delta_y) % L)
-            sum_correlation += nc(hi, site0, o0)*nc(hi, site1, o1)
-    return sum_correlation
+system = NetketQWZSystem(L, N = N, pbc = pbc, args = args)
 
-dummy_array = [0 for i in range(L**2)]
-corrs = {'ss': dummy_array, 'sp': dummy_array, 'pp': dummy_array}
+Ham = system.get_qwz_hamiltonian()
+
+hi = system.hi
+exchange_graph = system.get_exchange_graph()
+
+s, p = 1, -1
+#dummy_array = [0 for i in range(L**2)]
+corrs = {'ss': [0 for i in range(L**2)], 'sp': [0 for i in range(L**2)], 'pp': [0 for i in range(L**2)]}
 for i in range(L**2):
-    corrs['ss'][i] = corr_func(i, s, s)
-    corrs['sp'][i] = corr_func(i, s, p)
-    corrs['pp'][i] = corr_func(i, p, p)
+    corrs['pp'][i] = system.corr_func(i, p, p)
+    corrs['sp'][i] = system.corr_func(i, s, p)
+    corrs['ss'][i] = system.corr_func(i, s, s)
     #corrs[f"nc{i}nc0"] = corr_func(i)
-
 physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}/"
 
 if model_name == "slater":
@@ -172,7 +161,7 @@ def run_simulation(n_iter = 50, gs = -1):
     # Create the VMC (Variational Monte Carlo) driver
     if gs == -1:
         vstate = nk.vqs.MCState(sa, model, n_samples=2**12, n_discard_per_chain=16)
-        gs = nk.VMC(H, op, variational_state=vstate, preconditioner=preconditioner)
+        gs = nk.VMC(Ham, op, variational_state=vstate, preconditioner=preconditioner)
     
     # Construct the logger to visualize the data later on
     log = nk.logging.RuntimeLog()

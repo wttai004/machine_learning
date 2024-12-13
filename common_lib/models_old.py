@@ -3,6 +3,7 @@ import netket.experimental as nkx
 from netket.experimental.operator.fermion import destroy as c
 from netket.experimental.operator.fermion import create as cdag
 from netket.experimental.operator.fermion import number as nc
+import numpy as np
 
 s = 0
 p = 1
@@ -145,3 +146,27 @@ def get_debug_Ham(hi, graph, m = 1.0, t = 1.0, U = 1.0):
         else:
             raise ValueError("Invalid color")
     return H
+
+
+def get_L(size):
+    if int(np.sqrt(size))**2 != size:
+        raise ValueError("This method only works for perfect square")
+    return int(np.sqrt(size))
+
+def lattice_index(graph, i, j):
+    
+    return i * L + j
+
+def corr_func(graph, i, o0, o1):
+    delta_x = i // L
+    delta_y = i % L
+    sum_correlation = 0
+    for i in range(L):
+        for j in range(L):
+            site0 = lattice_index(i, j)
+            if pbc == False:
+                if i + delta_x >= L or j + delta_y >= L:
+                    continue
+            site1 = lattice_index((i + delta_x) % L, (j + delta_y) % L)
+            sum_correlation += nc(hi, site0, o0)*nc(hi, site1, o1)
+    return sum_correlation

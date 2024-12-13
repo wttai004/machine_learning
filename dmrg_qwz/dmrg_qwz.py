@@ -162,9 +162,9 @@ E0, psi = engine.run()
 print(f'Ground state energy: {E0}')
 
 correlation_types = {
-    "uu": ("Nu", "Nu"),
-    "ud": ("Nu", "Nd"),
-    "dd": ("Nd", "Nd")
+    "ss": ("Nu", "Nu"),
+    "pp": ("Nu", "Nd"),
+    "sp": ("Nd", "Nd")
 }
 
 # Compute and store correlation results
