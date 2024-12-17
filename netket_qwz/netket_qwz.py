@@ -7,6 +7,7 @@ import jax
 import jax.numpy as jnp
 import json
 import time
+import fcntl
 import matplotlib.pyplot as plt
 from datetime import datetime
 
@@ -33,7 +34,7 @@ parser.add_argument("--N_frac", type=float, default=-1, help="Fraction of partic
 parser.add_argument("--m", type=float, default=5.0, help="mass term in the Hamiltonian")
 parser.add_argument("--t", type=float, default=1.0, help="hopping term in the Hamiltonian")
 parser.add_argument("--U", type=float, default=0.2, help="interaction term in the Hamiltonian")
-parser.add_argument("--n_iter", type=int, default=50, help="number of iterations")
+parser.add_argument("--n_iter", type=int, default=10, help="number of iterations")
 parser.add_argument("--learning_rate", type=float, default=0.01, help="learning rate")
 parser.add_argument("--diag_shift", type=float, default=0.01, help="diagonal shift in the Stochastic Reconfiguration method")
 parser.add_argument("--n_discard_per_chain", type=int, default=16, help="number of samples to discard per chain")
@@ -46,6 +47,10 @@ parser.add_argument("--n_iter_trial", type=int, default=100, help="number of ite
 parser.add_argument("--max_restarts", type=int, default=-1, help="maximum number of restarts")
 parser.add_argument("--output_dir", type=str, default= "/home1/wttai/machine_learning/netket_qwz/data/", help="output directory")
 parser.add_argument("--bias", type=float, default=1e-5, help="bias term in the Hamiltonian")
+
+parser.add_argument("--create_database", dest="create_database", help="create a database", action="store_true")
+parser.add_argument("--database_name", type=str, default="database", help="database directory")
+parser.add_argument("--job_id", type=int, default=0, help="job id")
 args = parser.parse_args()
 
 L = args.L
@@ -77,6 +82,9 @@ model_name = args.model
 pbc = args.pbc
 max_restarts = args.max_restarts
 outputDir = args.output_dir
+create_database = args.create_database
+database_name = args.database_name
+job_id = args.job_id
 
 maxVariance = 50
 restart_count = 0  # Counter to track restarts
@@ -230,3 +238,41 @@ mergedData = {
 
 with open(outputFilename + ".json", 'w') as f:
     json.dump(mergedData, f, indent=4)
+
+
+
+if create_database:
+    database_location = outputDir + database_name + ".json"
+    
+    print(f"Creating database at {database_location}", flush = True)
+    #os.makedirs(database_name, exist_ok=True)
+
+    if not os.path.exists(database_location):
+        with open(database_location, 'w') as f:
+            json.dump([], f)
+
+    # Append the new job data
+    with open(database_location, 'r+') as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        
+        # Load existing data
+        data = json.load(f)
+        
+        job_data = {
+            'job_id': job_id,
+            'metadata': metaData,
+            #'data': runtimeData,
+            'outputFilename': outputFilename
+        }
+        # Append the new entry
+        data.append(job_data)
+        
+        # Write back to file
+        f.seek(0)
+        json.dump(data, f, indent=4)
+        f.truncate()
+
+        #fcntl.flock(f, fcntl.LOCK_UN)
+
+    print(f"Database created at {database_location}", flush = True)
+    exit(0)

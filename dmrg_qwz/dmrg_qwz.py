@@ -72,11 +72,14 @@ if N_frac != -1:
 if N > Lx * Ly:
     raise ValueError("Current code is not good for more than half-filling")
 
-print(f"Initial parameters: m = {m}, t = {t}, U = {U}")
+print(f"Initial parameters: m = {m}, t = {t}, U = {U}", flush = True)
 
 physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}/"
 
 outputFilename=output_dir + physicalSystemDir + f"dmrg_log_chi_max={chi_max}.h5"
+
+print(f"Output file: {outputFilename}", flush = True)
+
 os.makedirs(output_dir + physicalSystemDir, exist_ok=True)
 
 

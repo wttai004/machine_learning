@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH -J dmrgqwz
-#SBATCH --ntasks=6
-#SBTACH --cpus-per-task=64
+#SBATCH --ntasks=3
+#SBTACH --cpus-per-task=128
 #SBATCH --nodes=3
 #SBATCH --time=96:00:00
 #SBATCH --partition=highmem
