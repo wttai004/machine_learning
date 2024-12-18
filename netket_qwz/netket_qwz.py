@@ -5,9 +5,8 @@ import numpy as np
 import scipy.sparse.linalg
 import jax
 import jax.numpy as jnp
-import json
+import json, fcntl
 import time
-import fcntl
 import matplotlib.pyplot as plt
 from datetime import datetime
 

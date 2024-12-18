@@ -18,6 +18,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 import h5py
 import time
+import json, fcntl
 from tenpy.tools import hdf5_io
 
 from argparse import ArgumentParser
@@ -41,6 +42,10 @@ parser.add_argument("--pbc",  dest="pbc", help="periodic boundary conditions", a
 parser.add_argument("--output_dir" , type=str, default="data/", help="output directory")
 parser.add_argument("--bias", type=float, default=1e-5, help="bias term in the Hamiltonian")
 
+parser.add_argument("--create_database", dest="create_database", help="create a database", action="store_true")
+parser.add_argument("--database_name", type=str, default="database", help="database directory")
+parser.add_argument("--job_id", type=int, default=0, help="job id")
+
 args = parser.parse_args()
 
 
@@ -56,6 +61,9 @@ chi_max = args.chi_max
 pbc = args.pbc
 output_dir = args.output_dir
 bias = args.bias
+create_database = args.create_database
+database_name = args.database_name
+job_id = args.job_id
 
 if L != -1:
     Lx = L
@@ -215,3 +223,41 @@ mergedData = {
 
 with h5py.File(outputFilename, 'w') as f:
     hdf5_io.save_to_hdf5(f, mergedData)
+
+
+
+if create_database:
+    database_location = output_dir + database_name + ".json"
+    
+    print(f"Creating database at {database_location}", flush = True)
+    #os.makedirs(database_name, exist_ok=True)
+
+    if not os.path.exists(database_location):
+        with open(database_location, 'w') as f:
+            json.dump([], f)
+
+    # Append the new job data
+    with open(database_location, 'r+') as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        
+        # Load existing data
+        data = json.load(f)
+        
+        job_data = {
+            'job_id': job_id,
+            'metadata': metaData,
+            #'data': runtimeData,
+            'outputFilename': outputFilename
+        }
+        # Append the new entry
+        data.append(job_data)
+        
+        # Write back to file
+        f.seek(0)
+        json.dump(data, f, indent=4)
+        f.truncate()
+
+        #fcntl.flock(f, fcntl.LOCK_UN)
+
+    print(f"Database created at {database_location}", flush = True)
+    exit(0)

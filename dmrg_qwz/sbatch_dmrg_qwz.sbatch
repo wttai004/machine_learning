@@ -13,7 +13,7 @@ source /home1/wttai/miniconda3/etc/profile.d/conda.sh
 
 conda activate /data1/conda/mobius
 
-srun python3 ~/multirun.py dmrg_qwz.task --unique_output_dir
+srun python3 ~/multirun.py dmrg_qwz.task --unique_output_dir --create_database
 
 rm dmrg_qwz.sync
 
