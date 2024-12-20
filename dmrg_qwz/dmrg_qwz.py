@@ -174,8 +174,8 @@ print(f'Ground state energy: {E0}')
 
 correlation_types = {
     "ss": ("Nu", "Nu"),
-    "pp": ("Nu", "Nd"),
-    "sp": ("Nd", "Nd")
+    "sp": ("Nu", "Nd"),
+    "pp": ("Nd", "Nd")
 }
 
 # Compute and store correlation results
