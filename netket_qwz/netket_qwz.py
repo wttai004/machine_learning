@@ -46,6 +46,7 @@ parser.add_argument("--n_iter_trial", type=int, default=100, help="number of ite
 parser.add_argument("--max_restarts", type=int, default=-1, help="maximum number of restarts")
 parser.add_argument("--output_dir", type=str, default= "/home1/wttai/machine_learning/netket_qwz/data/", help="output directory")
 parser.add_argument("--bias", type=float, default=1e-5, help="bias term in the Hamiltonian")
+parser.add_argument("--n_runs", type=int, default=1, help="number of runs")
 
 parser.add_argument("--create_database", dest="create_database", help="create a database", action="store_true")
 parser.add_argument("--database_name", type=str, default="database", help="database directory")
@@ -80,198 +81,213 @@ n_samples = args.n_samples
 model_name = args.model
 pbc = args.pbc
 max_restarts = args.max_restarts
+n_runs = args.n_runs
 outputDir = args.output_dir
 create_database = args.create_database
 database_name = args.database_name
 job_id = args.job_id
 
 maxVariance = 50
-restart_count = 0  # Counter to track restarts
-converged = False  # Flag to check if the run converged
 
 #outputDir = "/home1/wttai/machine_learning/netket_qwz/data/"
 
 print("NetKet version: ", nk.__version__, flush = True)
 
-timestamp = datetime.now().strftime('%Y%m%d_%H%M')
+timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 print(f"Starting run at {timestamp}", flush = True)
 
 print(f"Initial parameters: m = {m}, t = {t}, U = {U}", flush = True)
 print(f"Particle number = {N}, L = {L}, pbc = {pbc}", flush = True)
-
-
 
 complex=True
 s, p = 1, -1
 
 args = {'U': U, 't': t, 'm': m, 'bias': bias}
 
-system = NetketQWZSystem(L, N = N, pbc = pbc, args = args)
+def run_simulation(run_id = 1):
+    print("_" * 50) 
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    print(f"Starting run {run_id} of {n_runs} at {timestamp}", flush = True)
 
-Ham = system.get_qwz_hamiltonian()
+    restart_count = 0  # Counter to track restarts
+    converged = False  # Flag to check if the run converged
 
-hi = system.hi
-exchange_graph = system.get_exchange_graph()
+    system = NetketQWZSystem(L, N = N, pbc = pbc, args = args)
 
-s, p = 1, -1
-#dummy_array = [0 for i in range(L**2)]
-corrs = {'ss': [0 for i in range(L**2)], 'sp': [0 for i in range(L**2)], 'pp': [0 for i in range(L**2)]}
-for i in range(L**2):
-    corrs['pp'][i] = system.corr_func(i, p, p)
-    corrs['sp'][i] = system.corr_func(i, s, p)
-    corrs['ss'][i] = system.corr_func(i, s, s)
-    #corrs[f"nc{i}nc0"] = corr_func(i)
-physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}/"
+    Ham = system.get_qwz_hamiltonian()
 
-if model_name == "slater":
-    print("Using Slater determinant wave function", flush = True)
+    hi = system.hi
+    exchange_graph = system.get_exchange_graph()
+
+    s, p = 1, -1
+    #dummy_array = [0 for i in range(L**2)]
+    corrs = {'ss': [0 for i in range(L**2)], 'sp': [0 for i in range(L**2)], 'pp': [0 for i in range(L**2)]}
+
+    for i in range(L**2):
+        corrs['pp'][i] = system.corr_func(i, p, p)
+        corrs['sp'][i] = system.corr_func(i, s, p)
+        corrs['ss'][i] = system.corr_func(i, s, s)
+        #corrs[f"nc{i}nc0"] = corr_func(i)
+    physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}/"
+
+    if model_name == "slater":
+        print("Using Slater determinant wave function", flush = True)
+        # Create the Slater determinant model
+        model = LogSlaterDeterminant(hi, complex = complex)
+        outputFilename=outputDir + physicalSystemDir + f"slater_log_n_samples={n_samples}_run={run_id}"
+        os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
+
+    elif model_name == "nj":
+        print("Using Neural Jastrow-Slater wave function", flush = True)
+        # Create a Neural Jastrow Slater wave function 
+        model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
+        #outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
+        outputFilename=outputDir + physicalSystemDir + f"nj_log_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}_n_samples={n_samples}_run={run_id}"
+        os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
+
+    elif model_name == "nb":
+        print("Using Neural Backflow wave function", flush = True)
+        model = LogNeuralBackflow(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
+        #outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
+        outputFilename=outputDir + physicalSystemDir + f"nb_log_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}_n_samples={n_samples}_run={run_id}"
+        os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
+
+    else:
+        raise ValueError("Invalid model type")
+
+    print(f"Output will be saved to {outputFilename}", flush=True)
+
     # Create the Slater determinant model
-    model = LogSlaterDeterminant(hi, complex = complex)
-    outputFilename=outputDir + physicalSystemDir + f"slater_log_n_samples={n_samples}"
-    os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
+    model = LogSlaterDeterminant(hi, complex=complex)
 
-elif model_name == "nj":
-    print("Using Neural Jastrow-Slater wave function", flush = True)
-    # Create a Neural Jastrow Slater wave function 
-    model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
-    #outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-    outputFilename=outputDir + physicalSystemDir + f"nj_log_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}_n_samples={n_samples}"
-    os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
+    # Define the Metropolis-Hastings sampler
+    #sa = nk.sampler.ExactSampler(hi)
+    sa = nk.sampler.MetropolisExchange(hi, graph=exchange_graph)
 
-elif model_name == "nb":
-    print("Using Neural Backflow wave function", flush = True)
-    model = LogNeuralBackflow(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
-    #outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-    outputFilename=outputDir + physicalSystemDir + f"nb_log_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}_n_samples={n_samples}"
-    os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
+    # Define the optimizer
+    op = nk.optimizer.Sgd(learning_rate=learning_rate)
 
-else:
-    raise ValueError("Invalid model type")
+    # Define a preconditioner
+    preconditioner = nk.optimizer.SR(diag_shift=diag_shift, holomorphic=complex)
 
-print(f"Output will be saved to {outputFilename}", flush=True)
-
-# Create the Slater determinant model
-model = LogSlaterDeterminant(hi, complex=complex)
-
-# Define the Metropolis-Hastings sampler
-#sa = nk.sampler.ExactSampler(hi)
-sa = nk.sampler.MetropolisExchange(hi, graph=exchange_graph)
-
-# Define the optimizer
-op = nk.optimizer.Sgd(learning_rate=learning_rate)
-
-# Define a preconditioner
-preconditioner = nk.optimizer.SR(diag_shift=diag_shift, holomorphic=complex)
-
-# Function to run the VMC simulation
-def run_simulation(n_iter = 50, gs = -1):
-    # Create the VMC (Variational Monte Carlo) driver
-    if gs == -1:
-        vstate = nk.vqs.MCState(sa, model, n_samples=2**12, n_discard_per_chain=16)
-        gs = nk.VMC(Ham, op, variational_state=vstate, preconditioner=preconditioner)
-    
-    # Construct the logger to visualize the data later on
-    log = nk.logging.RuntimeLog()
-    
-    # Run the optimization for a short number of iterations (e.g., 50)
-    gs.run(n_iter=n_iter, out=log, obs=corrs)
-    
-    return gs, log
-
-# Main loop for checking convergence and restarting if needed
-if max_restarts != -1:
-    while restart_count < max_restarts and not converged:
-        gs, log = run_simulation(n_iter = n_iter_trial)
+    # Function to run the VMC simulation
+    def run_simulation(n_iter = 50, gs = -1):
+        # Create the VMC (Variational Monte Carlo) driver
+        if gs == -1:
+            vstate = nk.vqs.MCState(sa, model, n_samples=2**12, n_discard_per_chain=16)
+            gs = nk.VMC(Ham, op, variational_state=vstate, preconditioner=preconditioner)
         
-        print(log['Energy']['Variance'])
-        # Check if the standard deviation of the energy at the last iteration is too high
-        if log['Energy']['Variance'][-1] > maxVariance:
-            print(f"Bad convergence detected. Restarting attempt {restart_count + 1} of {max_restarts}...", flush = True)
-            restart_count += 1
-        else:
-            converged = True
-            print("Good convergence. Continuing with the full run...", flush = True)
-    # If the loop exits without good convergence, raise an exception
-    if not converged:
-        raise Exception("Failed to converge after 3 attempts. Aborting the run.", flush = True)
-
-# If converged, run the full simulation
-print("Starting full simulation...", flush = True)
-# You can extend this part to run the full simulation for more iterations
-gs, log = run_simulation(n_iter = n_iter, gs = -1 if max_restarts == -1 else gs)  # Re-run with the full iteration count
-print("Full simulation completed.", flush = True)
-
-
-print("All done!", flush = True)
-
-print(f"Saving into {outputFilename}", flush = True)
-
-log.serialize(outputFilename)
-
-runtimeData = json.load(open(outputFilename + ".json"))
-
-metaData = {
-    'L': L,
-    'N': N,
-    'm': m,
-    't': t,
-    'U': U,
-    'bias': bias,
-    'n_hidden': n_hidden,
-    'n_hidden_layers': n_hidden_layers,
-    'n_iter_trial': n_iter_trial,
-    'n_iter': n_iter,
-    'learning_rate': learning_rate,
-    'diag_shift': diag_shift,
-    'n_discard_per_chain': n_discard_per_chain,
-    'n_samples': n_samples, 
-    'pbc': pbc,
-    'model': model_name,
-    'timestamp': time.strftime("%Y-%m-%d %H:%M:%S"),
-}
-
-mergedData = {
-    'metadata': metaData,
-    'data': runtimeData
-}
-
-with open(outputFilename + ".json", 'w') as f:
-    json.dump(mergedData, f, indent=4)
-
-
-
-if create_database:
-    database_location = outputDir + database_name + ".json"
-    
-    print(f"Creating database at {database_location}", flush = True)
-    #os.makedirs(database_name, exist_ok=True)
-
-    if not os.path.exists(database_location):
-        with open(database_location, 'w') as f:
-            json.dump([], f)
-
-    # Append the new job data
-    with open(database_location, 'r+') as f:
-        fcntl.flock(f, fcntl.LOCK_EX)
+        # Construct the logger to visualize the data later on
+        log = nk.logging.RuntimeLog()
         
-        # Load existing data
-        data = json.load(f)
+        # Run the optimization for a short number of iterations (e.g., 50)
+        gs.run(n_iter=n_iter, out=log, obs=corrs)
         
-        job_data = {
-            'job_id': job_id,
-            'metadata': metaData,
-            #'data': runtimeData,
-            'outputFilename': outputFilename
-        }
-        # Append the new entry
-        data.append(job_data)
+        return gs, log
+
+    # Main loop for checking convergence and restarting if needed
+    if max_restarts != -1:
+        while restart_count < max_restarts and not converged:
+            gs, log = run_simulation(n_iter = n_iter_trial)
+            
+            #print(log['Energy']['Variance'])
+            # Check if the standard deviation of the energy at the last iteration is too high
+            if log['Energy']['Variance'][-1] > maxVariance:
+                print(f"Bad convergence detected. Restarting attempt {restart_count + 1} of {max_restarts}...", flush = True)
+                restart_count += 1
+            else:
+                converged = True
+                print("Good convergence. Continuing with the full run...", flush = True)
+        # If the loop exits without good convergence, raise an exception
+        if not converged:
+            raise Exception("Failed to converge after 3 attempts. Aborting the run.", flush = True)
+
+    # If converged, run the full simulation
+    print("Starting full simulation...", flush = True)
+    # You can extend this part to run the full simulation for more iterations
+    gs, log = run_simulation(n_iter = n_iter, gs = -1 if max_restarts == -1 else gs)  # Re-run with the full iteration count
+    print("Full simulation completed.", flush = True)
+
+
+    print("All done!", flush = True)
+
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    print(f"Run completed at {timestamp}", flush = True)
+
+    print(f"Saving into {outputFilename}", flush = True)
+
+    log.serialize(outputFilename)
+
+    runtimeData = json.load(open(outputFilename + ".json"))
+
+    metaData = {
+        'L': L,
+        'N': N,
+        'm': m,
+        't': t,
+        'U': U,
+        'bias': bias,
+        'n_hidden': n_hidden,
+        'n_hidden_layers': n_hidden_layers,
+        'n_iter_trial': n_iter_trial,
+        'n_iter': n_iter,
+        'learning_rate': learning_rate,
+        'diag_shift': diag_shift,
+        'n_discard_per_chain': n_discard_per_chain,
+        'n_samples': n_samples, 
+        'pbc': pbc,
+        'model': model_name,
+        'run_id': run_id,
+        'timestamp': time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    mergedData = {
+        'metadata': metaData,
+        'data': runtimeData
+    }
+
+    with open(outputFilename + ".json", 'w') as f:
+        json.dump(mergedData, f, indent=4)
+
+
+
+    if create_database:
+        database_location = outputDir + database_name + ".json"
         
-        # Write back to file
-        f.seek(0)
-        json.dump(data, f, indent=4)
-        f.truncate()
+        print(f"Creating database at {database_location}", flush = True)
+        #os.makedirs(database_name, exist_ok=True)
 
-        #fcntl.flock(f, fcntl.LOCK_UN)
+        if not os.path.exists(database_location):
+            with open(database_location, 'w') as f:
+                json.dump([], f)
 
-    print(f"Database created at {database_location}", flush = True)
-    exit(0)
+        # Append the new job data
+        with open(database_location, 'r+') as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            
+            # Load existing data
+            data = json.load(f)
+            
+            job_data = {
+                'job_id': job_id,
+                'metadata': metaData,
+                #'data': runtimeData,
+                'outputFilename': outputFilename
+            }
+            # Append the new entry
+            data.append(job_data)
+            
+            # Write back to file
+            f.seek(0)
+            json.dump(data, f, indent=4)
+            f.truncate()
+
+            #fcntl.flock(f, fcntl.LOCK_UN)
+
+        print(f"Database created at {database_location}", flush = True)
+        #exit(0)
+
+
+for i in range(n_runs):
+    run_simulation(i + 1)
