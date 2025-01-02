@@ -1,9 +1,9 @@
 #!/bin/bash
 
 #SBATCH -J nkqwz
-#SBATCH --ntasks=96
+#SBATCH --ntasks=192
 #SBATCH --nodes=12
-#SBATCH --time=120:00:00
+#SBATCH --time=240:00:00
 
 module load gcc mkl
 

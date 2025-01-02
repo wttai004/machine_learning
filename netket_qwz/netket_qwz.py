@@ -107,6 +107,7 @@ args = {'U': U, 't': t, 'm': m, 'bias': bias}
 def run_simulation(run_id = 1):
     print("_" * 50) 
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    start_time = datetime.now()
     print(f"Starting run {run_id} of {n_runs} at {timestamp}", flush = True)
 
     restart_count = 0  # Counter to track restarts
@@ -215,6 +216,12 @@ def run_simulation(run_id = 1):
 
     print(f"Run completed at {timestamp}", flush = True)
 
+    end_time = datetime.now()
+    elapsed_time = end_time - start_time
+    elapsed_seconds = elapsed_time.total_seconds()
+
+    print(f"Elapsed time in seconds: {elapsed_time.total_seconds()} seconds", flush = True)
+
     print(f"Saving into {outputFilename}", flush = True)
 
     log.serialize(outputFilename)
@@ -240,6 +247,7 @@ def run_simulation(run_id = 1):
         'model': model_name,
         'run_id': run_id,
         'timestamp': time.strftime("%Y-%m-%d %H:%M:%S"),
+        'elapsed_time': elapsed_seconds,
     }
 
     mergedData = {
