@@ -9,6 +9,7 @@ import json, fcntl
 import time
 import matplotlib.pyplot as plt
 from datetime import datetime
+import warnings
 
 import sys, os
 sys.path.append('/Users/wttai/Documents/Jupyter/machine_learning/common_lib')
@@ -28,6 +29,7 @@ from argparse import ArgumentParser
 parser = ArgumentParser()
 
 parser.add_argument("--L", type=int, default=2, help="Side of the square")
+parser.add_argument("--L2", type=int, default=-1, help="Side of the rectangle (if using rectangle)")
 parser.add_argument("--N" , type=int, default=-1, help="Number of particles")
 parser.add_argument("--N_frac", type=float, default=-1, help="Fraction of particles (default to half-filling)")
 parser.add_argument("--m", type=float, default=5.0, help="mass term in the Hamiltonian")
@@ -47,6 +49,9 @@ parser.add_argument("--max_restarts", type=int, default=-1, help="maximum number
 parser.add_argument("--output_dir", type=str, default= "/home1/wttai/machine_learning/netket_qwz/data/", help="output directory")
 parser.add_argument("--bias", type=float, default=1e-5, help="bias term in the Hamiltonian")
 parser.add_argument("--n_runs", type=int, default=1, help="number of runs")
+parser.add_argument("--real", dest="real", help="use real Hamiltonian and model", action="store_false")
+parser.add_argument("--test_exact_energy", dest="test_exact_energy", help="test the exact energy (only for small systems)", action="store_true")
+parser.add_argument("--exact_sampling", dest="exact_sampling", help="use exact sampling instead of Metropolis exchange (only for small systems)", action="store_true")
 
 parser.add_argument("--create_database", dest="create_database", help="create a database", action="store_true")
 parser.add_argument("--database_name", type=str, default="database", help="database directory")
@@ -54,16 +59,17 @@ parser.add_argument("--job_id", type=int, default=0, help="job id")
 args = parser.parse_args()
 
 L = args.L
+L2 = L if args.L2 == -1 else args.L2
 N = args.N
 N_frac = args.N_frac
 if N != -1 and N_frac != -1:
     raise ValueError("Cannot specify both N and N_frac")
 if N == -1 and N_frac == -1:
-    N = L**2
+    N = L * L2
 if N_frac != -1:
-    N = int(2 * N_frac * L**2)
+    N = int(2 * N_frac * L * L2)
 
-if N > L**2:
+if N > L * L2:
     raise ValueError("Current code is not good for more than half-filling")
 
 m = args.m
@@ -86,6 +92,9 @@ outputDir = args.output_dir
 create_database = args.create_database
 database_name = args.database_name
 job_id = args.job_id
+complex = args.real
+test_exact_energy = args.test_exact_energy
+exact_sampling = args.exact_sampling
 
 maxVariance = 50
 
@@ -97,12 +106,16 @@ timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 print(f"Starting run at {timestamp}", flush = True)
 
 print(f"Initial parameters: m = {m}, t = {t}, U = {U}", flush = True)
-print(f"Particle number = {N}, L = {L}, pbc = {pbc}", flush = True)
+if L2 != L:
+    print(f"Rectangle dimensions: L = {L}, L2 = {L2}", flush = True)
+else:
+    print(f"Square side: L = {L}", flush = True)
+print(f"Particle number = {N}, pbc = {pbc}", flush = True)
 
-complex=True
 s, p = 1, -1
+#test_exact_energy = True
 
-args = {'U': U, 't': t, 'm': m, 'bias': bias}
+args = {'U': U, 't': t, 'm': m, 'bias': bias, 'complex': complex}
 
 def run_simulation(run_id = 1):
     print("_" * 50) 
@@ -113,48 +126,70 @@ def run_simulation(run_id = 1):
     restart_count = 0  # Counter to track restarts
     converged = False  # Flag to check if the run converged
 
-    system = NetketQWZSystem(L, N = N, pbc = pbc, args = args)
-
-    Ham = system.get_qwz_hamiltonian()
+    system = NetketQWZSystem(L, L2 = L2, N = N, pbc = pbc, args = args)
 
     hi = system.hi
     exchange_graph = system.get_exchange_graph()
 
+    Ham = system.get_qwz_hamiltonian()
+
+    if test_exact_energy or exact_sampling:
+        if hi.n_states > 1e5:
+            warnings.warn(f"The Hilbert space dimension might be too large for exact methods: {hi.n_states}", UserWarning)
+
+
+    if test_exact_energy:
+        evals, evecs = get_ed_data(Ham, k = 6)
+        E_gs = evals[0]
+        print(f"Exact ground state energy: {E_gs}", flush = True)
+
+
+
     s, p = 1, -1
     #dummy_array = [0 for i in range(L**2)]
-    corrs = {'ss': [0 for i in range(L**2)], 'sp': [0 for i in range(L**2)], 'pp': [0 for i in range(L**2)]}
+    corrs = {'ss': [0 for i in range(L*L2)], 'sp': [0 for i in range(L*L2)], 'pp': [0 for i in range(L*L2)]}
 
-    for i in range(L**2):
+    for i in range(L*L2):
         corrs['pp'][i] = system.corr_func(i, p, p)
         corrs['sp'][i] = system.corr_func(i, s, p)
         corrs['ss'][i] = system.corr_func(i, s, s)
         #corrs[f"nc{i}nc0"] = corr_func(i)
-    physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}/"
+    
+    if L2 != L:
+        physicalSystemDir = f"L={L}_L2={L2}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
+    else:
+        physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
 
     if model_name == "slater":
         print("Using Slater determinant wave function", flush = True)
         # Create the Slater determinant model
         model = LogSlaterDeterminant(hi, complex = complex)
-        outputFilename=outputDir + physicalSystemDir + f"slater_log_n_samples={n_samples}_run={run_id}"
-        os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
+        outputFilename = (outputDir + physicalSystemDir + 
+                          f"slater_log_" 
+                          + (f"exact_sampling" if exact_sampling else f"n_samples={n_samples}") 
+                          + f"_run={run_id}")
 
     elif model_name == "nj":
         print("Using Neural Jastrow-Slater wave function", flush = True)
         # Create a Neural Jastrow Slater wave function 
         model = LogNeuralJastrowSlater(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
-        #outputFilename=outputDir+f"data/nj_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-        outputFilename=outputDir + physicalSystemDir + f"nj_log_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}_n_samples={n_samples}_run={run_id}"
-        os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
+        outputFilename = (outputDir + physicalSystemDir + 
+                          f"nj_log_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}_" 
+                          + (f"exact_sampling" if exact_sampling else f"n_samples={n_samples}") 
+                          + f"_run={run_id}")
 
     elif model_name == "nb":
         print("Using Neural Backflow wave function", flush = True)
         model = LogNeuralBackflow(hi, hidden_units=n_hidden, complex = complex, num_hidden_layers=n_hidden_layers)
-        #outputFilename=outputDir+f"data/nb_log_L={L}_t={t}_m={m}_U={U}_n_hidden={n_hidden}"
-        outputFilename=outputDir + physicalSystemDir + f"nb_log_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}_n_samples={n_samples}_run={run_id}"
-        os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
+        outputFilename = (outputDir + physicalSystemDir + 
+                          f"nb_log_n_hidden={n_hidden}_n_hidden_layers={n_hidden_layers}_" 
+                          + (f"exact_sampling" if exact_sampling else f"n_samples={n_samples}") 
+                          + f"_run={run_id}")
 
     else:
         raise ValueError("Invalid model type")
+
+    os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
 
     print(f"Output will be saved to {outputFilename}", flush=True)
 
@@ -162,8 +197,10 @@ def run_simulation(run_id = 1):
     model = LogSlaterDeterminant(hi, complex=complex)
 
     # Define the Metropolis-Hastings sampler
-    #sa = nk.sampler.ExactSampler(hi)
-    sa = nk.sampler.MetropolisExchange(hi, graph=exchange_graph)
+    if exact_sampling:
+        sa = nk.sampler.ExactSampler(hi)
+    else:
+        sa = nk.sampler.MetropolisExchange(hi, graph=exchange_graph)
 
     # Define the optimizer
     op = nk.optimizer.Sgd(learning_rate=learning_rate)
@@ -216,6 +253,8 @@ def run_simulation(run_id = 1):
 
     print(f"Run completed at {timestamp}", flush = True)
 
+    print(f"Ground state energy: {log['Energy']['Mean'][-1]}", flush = True)
+
     end_time = datetime.now()
     elapsed_time = end_time - start_time
     elapsed_seconds = elapsed_time.total_seconds()
@@ -230,11 +269,13 @@ def run_simulation(run_id = 1):
 
     metaData = {
         'L': L,
+        'L2': L2,
         'N': N,
         'm': m,
         't': t,
         'U': U,
         'bias': bias,
+        'complex': complex,
         'n_hidden': n_hidden,
         'n_hidden_layers': n_hidden_layers,
         'n_iter_trial': n_iter_trial,
@@ -243,6 +284,7 @@ def run_simulation(run_id = 1):
         'diag_shift': diag_shift,
         'n_discard_per_chain': n_discard_per_chain,
         'n_samples': n_samples, 
+        'exact_sampling': exact_sampling,
         'pbc': pbc,
         'model': model_name,
         'run_id': run_id,

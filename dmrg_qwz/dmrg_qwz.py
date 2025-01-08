@@ -29,9 +29,12 @@ from dmrg_correlation_helper import compute_corr_results
 
 parser = ArgumentParser()
 
+# parser.add_argument("--L", type=int, default=2, help="Side of the square")
+# parser.add_argument("--Lx", type=int, default=-1, help="Side of the rectangle in the x direction (if L is not specified)")
+# parser.add_argument("--Ly", type=int, default=-1, help="Side of the rectangle in the y direction (if L is not specified)")
 parser.add_argument("--L", type=int, default=2, help="Side of the square")
-parser.add_argument("--Lx", type=int, default=2, help="Side of the rectangle in the x direction (if L is not specified)")
-parser.add_argument("--Ly", type=int, default=2, help="Side of the rectangle in the y direction (if L is not specified)")
+parser.add_argument("--L2", type=int, default=-1, help="Side of the rectangle (if using rectangle)")
+
 parser.add_argument("--N" , type=int, default=-1, help="Number of particles (default to half-filling)")
 parser.add_argument("--N_frac", type=float, default=-1, help="Fraction of particles (default to half-filling)")
 parser.add_argument("--m", type=float, default=5.0, help="mass term in the Hamiltonian")
@@ -41,6 +44,7 @@ parser.add_argument("--chi_max", type=int, default=1000, help="maximum bond dime
 parser.add_argument("--pbc",  dest="pbc", help="periodic boundary conditions", action="store_true")
 parser.add_argument("--output_dir" , type=str, default="data/", help="output directory")
 parser.add_argument("--bias", type=float, default=1e-5, help="bias term in the Hamiltonian")
+parser.add_argument("--real", dest="real", help="use real Hamiltonian and model", action="store_false")
 
 parser.add_argument("--create_database", dest="create_database", help="create a database", action="store_true")
 parser.add_argument("--database_name", type=str, default="database", help="database directory")
@@ -50,8 +54,10 @@ args = parser.parse_args()
 
 
 L = args.L
-Lx = args.Lx
-Ly = args.Ly
+L2 = L if args.L2 == -1 else args.L2
+Lx = L
+Ly = L2
+
 m = args.m
 t = args.t
 U = args.U
@@ -64,11 +70,7 @@ bias = args.bias
 create_database = args.create_database
 database_name = args.database_name
 job_id = args.job_id
-
-if L != -1:
-    Lx = L
-    Ly = L
-
+complex = args.real
 
 if N != -1 and N_frac != -1:
     raise ValueError("Cannot specify both N and N_frac")
@@ -82,7 +84,10 @@ if N > Lx * Ly:
 
 print(f"Initial parameters: m = {m}, t = {t}, U = {U}", flush = True)
 
-physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}/"
+if L2 != L:
+    physicalSystemDir = f"L={L}_L2={L2}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
+else:
+    physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
 
 outputFilename=output_dir + physicalSystemDir + f"dmrg_log_chi_max={chi_max}.h5"
 
@@ -121,8 +126,8 @@ class FermiHubbardSquare(CouplingMPOModel):
             self.add_coupling(t, i1, "Cdu", i2, "Cu", dx, plus_hc=True)
             self.add_coupling(-t, i1, "Cdd", i2, "Cd", dx, plus_hc=True)
             if np.array_equal(dx, [1,0]):
-                self.add_coupling(1j * t, i1, "Cdu", i2, "Cd", dx, plus_hc=True)
-                self.add_coupling(1j * t, i1, "Cdd", i2, "Cu", dx, plus_hc=True)
+                self.add_coupling(1j * t if complex else t, i1, "Cdu", i2, "Cd", dx, plus_hc=True)
+                self.add_coupling(1j * t if complex else -t, i1, "Cdd", i2, "Cu", dx, plus_hc=True)
             if np.array_equal(dx, [0,1]):
                 self.add_coupling(t, i1, "Cdu", i2, "Cd", dx, plus_hc=True)
                 self.add_coupling(-t, i1, "Cdd", i2, "Cu", dx, plus_hc=True) 
@@ -195,12 +200,14 @@ data = {"psi": psi,  # e.g. an MPS
 
 metaData = {
     'L': L,
+    'L2': L2,
     'N': N,
     'm': m,
     't': t,
     'U': U,
     'bias': bias,
     'pbc': pbc,
+    'complex': complex,
     "mixer_params": {
         "amplitude": 0.3,
         "decay": 2,

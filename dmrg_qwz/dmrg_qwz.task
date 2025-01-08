@@ -1,9 +1,11 @@
 L = [4]
+L2 = [2]
 N_frac = [1/4]
 m = [1.0, 2.0, 3.0, 3.5, 4.5, 5.0]
 t = [1.0]
 U = [0.0, 1.0, 2.0, 4.0, 8.0]
 chi_max = [1000]
 pbc = ["--pbc"]
+real = ["--real"]
 
-EXEC('python dmrg_qwz.py {pbc} --L={L} --N_frac={N_frac} --m={m} --t={t} --U={U} --chi_max={chi_max}')
+EXEC('python dmrg_qwz.py {pbc} {real} --L={L} --L2={L2} --N_frac={N_frac} --m={m} --t={t} --U={U} --chi_max={chi_max}')

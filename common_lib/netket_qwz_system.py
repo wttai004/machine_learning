@@ -4,6 +4,7 @@ from netket.experimental.operator.fermion import destroy as c
 from netket.experimental.operator.fermion import create as cdag
 from netket.experimental.operator.fermion import number as nc
 import numpy as np
+import scipy
 
 s = 0
 p = 1
@@ -16,6 +17,7 @@ class NetketQWZSystem:
         self.N = N if N != -1 else L * self.L2
         self.pbc = pbc
         self.graph, self.hi = self._define_graph_and_hilbert()
+        self.Ham = None
 
     def _index(self, row, col, spin=0):
         return spin * self.L * self.L2 + (row * self.L + col)
@@ -66,6 +68,7 @@ class NetketQWZSystem:
                 H += t * (cdag(self.hi, i, spin) * c(self.hi, j, spin) + cdag(self.hi, j, spin) * c(self.hi, i, spin))
         for i in self.graph.nodes():
             H += U * (nc(self.hi, i, 1) + nc(self.hi, i, -1) - 1)**2
+        self.Ham = H
         return H
 
     def get_qwz_hamiltonian(self):
@@ -75,7 +78,8 @@ class NetketQWZSystem:
         m = self.args['m']
         t = self.args['t']
         U = self.args['U']
-        bias = self.args['bias']
+        bias = self.args.get('bias', 0)
+        complex  = self.args.get('complex', True)
 
         for i in self.graph.nodes():
             H += m * (nc(self.hi, i, s) - nc(self.hi, i, p))
@@ -84,16 +88,24 @@ class NetketQWZSystem:
             H += t * (cdag(self.hi, i, s) * c(self.hi, j, s) + cdag(self.hi, j, s) * c(self.hi, i, s) 
                       - cdag(self.hi, i, p) * c(self.hi, j, p) - cdag(self.hi, j, p) * c(self.hi, i, p))
             if color == 1:
-                H += 1j * t * (cdag(self.hi, i, s) * c(self.hi, j, p) - cdag(self.hi, j, p) * c(self.hi, i, s)
-                            + cdag(self.hi, i, p) * c(self.hi, j, s) - cdag(self.hi, j, s) * c(self.hi, i, p))
+                if complex:
+                    H += 1j * t * (cdag(self.hi, i, s) * c(self.hi, j, p) - cdag(self.hi, j, p) * c(self.hi, i, s)
+                                + cdag(self.hi, i, p) * c(self.hi, j, s) - cdag(self.hi, j, s) * c(self.hi, i, p))
+                else:
+                    H += t * (cdag(self.hi, i, s) * c(self.hi, j, p) + cdag(self.hi, j, p) * c(self.hi, i, s)
+                                - cdag(self.hi, i, p) * c(self.hi, j, s) - cdag(self.hi, j, s) * c(self.hi, i, p))
             elif color == 2:
                 H += t * (cdag(self.hi, i, s) * c(self.hi, j, p) + cdag(self.hi, j, p) * c(self.hi, i, s)
                           -cdag(self.hi, i, p) * c(self.hi, j, s) - cdag(self.hi, j, s) * c(self.hi, i, p))
 
             elif color == 3:
                 # x direction hopping for periodic boundary condition
-                H += 1j * t * (cdag(self.hi, j, s) * c(self.hi, i, p) - cdag(self.hi, i, p) * c(self.hi, j, s)
-                    + cdag(self.hi, j, p) * c(self.hi, i, s) - cdag(self.hi, i, s) * c(self.hi, j, p))
+                if complex: 
+                    H += 1j * t * (cdag(self.hi, j, s) * c(self.hi, i, p) - cdag(self.hi, i, p) * c(self.hi, j, s)
+                        + cdag(self.hi, j, p) * c(self.hi, i, s) - cdag(self.hi, i, s) * c(self.hi, j, p))
+                else:
+                    H += t * (cdag(self.hi, j, s) * c(self.hi, i, p) + cdag(self.hi, i, p) * c(self.hi, j, s)
+                                - cdag(self.hi, j, p) * c(self.hi, i, s) - cdag(self.hi, i, s) * c(self.hi, j, p))
                 
             elif color == 4:
                 # y direction hopping for periodic boundary condition
@@ -102,16 +114,39 @@ class NetketQWZSystem:
             else:
                 raise ValueError(f"Invalid edge color {color}")
         H += bias * nc(self.hi, 0, p)
+        self.Ham = H
         return H
 
     def corr_func(self, i, o0, o1):
-        delta_x, delta_y = i // self.L, i % self.L
-        sum_corr = 0
-        for x in range(self.L):
-            for y in range(self.L):
-                site0 = self._index(x, y)
-                if not self.pbc and (x + delta_x >= self.L or y + delta_y >= self.L):
+        # Unfold the shift i into (delta_y, delta_x)
+        delta_y = i // self.L
+        delta_x = i % self.L
+
+        sum_corr = 0.0
+        for y in range(self.L2):
+            for x in range(self.L):
+                site0 = self._index(y, x)  # row=y, col=x
+                if not self.pbc and (y + delta_y >= self.L2 or x + delta_x >= self.L):
                     continue
-                site1 = self._index((x + delta_x) % self.L, (y + delta_y) % self.L)
+
+                site1 = self._index((y + delta_y) % self.L2,(x + delta_x) % self.L,)
                 sum_corr += nc(self.hi, site0, o0) * nc(self.hi, site1, o1)
+
         return sum_corr
+
+    def get_ed_data(self, k = 2):
+        # Convert the Hamiltonian to a sparse matrix
+        if self.Ham is None:
+            raise ValueError("Hamiltonian not defined")
+        sp_h = self.Ham.to_sparse()
+
+        eig_vals, eig_vecs = scipy.sparse.linalg.eigsh(sp_h, k=k, which="SA")
+
+        sorted_indices = eig_vals.argsort()
+        eig_vals = eig_vals[sorted_indices]
+        eig_vecs = eig_vecs[:, sorted_indices]
+
+        E_gs = eig_vals[0]
+
+        print("Exact ground state energy:", E_gs)
+        return eig_vals, eig_vecs
