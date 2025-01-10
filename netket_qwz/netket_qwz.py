@@ -276,6 +276,7 @@ def run_simulation(run_id = 1):
         'U': U,
         'bias': bias,
         'complex': complex,
+        'real': not complex,
         'n_hidden': n_hidden,
         'n_hidden_layers': n_hidden_layers,
         'n_iter_trial': n_iter_trial,
