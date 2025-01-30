@@ -8,6 +8,8 @@ Data is not uploaded here due to storage constraints.
 
 Organization:
 
-dmrg_qwz: simulation using Density Matrix Renormalization Group (DMRG) to benchmark ground state.
+common_lib: contains helper functions for simulation
+
+dmrg_qwz: simulation using Density Matrix Renormalization Group (DMRG) implemented in [TenPy](https://tenpy.readthedocs.io/en/latest/) to benchmark ground state behavior.
 
 netket_qwz: simulation using NQS, implemented using [NetKet](https://www.netket.org). Currently, it implements a Slater Determinant model for benchmarking, as well as the Neural Jastrow and Neural Backflow Ansätze. For the latter two, a feed-forward neural network with tunable layer count and hidden neurons is implemented. 
