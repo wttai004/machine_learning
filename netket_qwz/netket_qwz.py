@@ -15,7 +15,7 @@ import sys, os
 sys.path.append('/Users/wttai/Documents/Jupyter/machine_learning/common_lib')
 sys.path.append('/home1/wttai/machine_learning/common_lib')
 #from models_old import get_qwz_graph, get_qwz_Ham, get_qwz_exchange_graph, cdag, c, nc
-from netket_qwz_system import NetketQWZSystem
+from netket_system import NetketQWZSystem
 from networks import *
 from helper import get_ed_data
 

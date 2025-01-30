@@ -28,6 +28,10 @@ class NetketSystem:
     def get_hamiltonian(self):
         pass
 
+    @abstractmethod
+    def get_exchange_graph(self):
+        pass
+
     def get_ed_data(self, k = 2):
         # Convert the Hamiltonian to a sparse matrix
         if self.Ham is None:
@@ -162,22 +166,27 @@ class NetketQWZSystem(NetketSystem):
 class NetketHubbardSystem(NetketSystem):
     # This is a spinless Hubbard system with nearest neighbor interaction
     def _define_graph_and_hilbert(self):
+        #graph = nk.graph.Grid((self.L, self.L2), pbc = self.pbc)
         edge_colors = []
         for row in range(self.L2):
             for col in range(self.L - 1):
-                edge_colors.append([self._index(row, col), self._index(row, col + 1), 1])
+                edge_colors.append([self._index(row, col), self._index(row, col + 1)])
             if self.pbc:
-                edge_colors.append([self._index(row, self.L - 1), self._index(row, 0), 3])
+                edge_colors.append([self._index(row, self.L - 1), self._index(row, 0)])
 
         for col in range(self.L):
             for row in range(self.L2 - 1):
-                edge_colors.append([self._index(row, col), self._index(row + 1, col), 2])
+                edge_colors.append([self._index(row, col), self._index(row + 1, col)])
             if self.pbc:
-                edge_colors.append([self._index(self.L2 - 1, col), self._index(0, col), 4])
+                edge_colors.append([self._index(self.L2 - 1, col), self._index(0, col)])
 
         graph = nk.graph.Graph(edges=edge_colors)
-        hilbert = nkx.hilbert.SpinOrbitalFermions(graph.n_nodes, s= 0, n_fermions=self.N)
+        hilbert = nkx.hilbert.SpinOrbitalFermions(graph.n_nodes, s=None, n_fermions=self.N)
+        #print(f"L = {self.L}, L2 = {self.L2}, Graph info: {graph.edges()}")
         return graph, hilbert
+    
+    def get_exchange_graph(self):
+        return self.graph
 
     def get_hamiltonian(self):
         H = 0.0 + 0.0j
@@ -186,7 +195,24 @@ class NetketHubbardSystem(NetketSystem):
         bias = self.args.get('bias', 0)
         for (i, j) in self.graph.edges():
             H += t * (cdag(self.hi, i) * c(self.hi, j) + cdag(self.hi, j) * c(self.hi, i))
-            H += U * nc(self.hi, i) * nc(self.hi, i) 
+            H += U * nc(self.hi, i) * nc(self.hi, j) 
         H += bias * nc(self.hi, 0)
         self.Ham = H
         return H
+
+    def corr_func(self, i):
+        # Unfold the shift i into (delta_y, delta_x)
+        delta_y = i // self.L
+        delta_x = i % self.L
+
+        sum_corr = 0.0
+        for y in range(self.L2):
+            for x in range(self.L):
+                site0 = self._index(y, x)  # row=y, col=x
+                if not self.pbc and (y + delta_y >= self.L2 or x + delta_x >= self.L):
+                    continue
+
+                site1 = self._index((y + delta_y) % self.L2,(x + delta_x) % self.L,)
+                sum_corr += nc(self.hi, site0) * nc(self.hi, site1)
+
+        return sum_corr
