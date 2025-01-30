@@ -131,7 +131,7 @@ def run_simulation(run_id = 1):
     hi = system.hi
     exchange_graph = system.get_exchange_graph()
 
-    Ham = system.get_qwz_hamiltonian()
+    Ham = system.get_hamiltonian()
 
     if test_exact_energy or exact_sampling:
         if hi.n_states > 1e5:
