@@ -6,6 +6,8 @@ This project is a work in progress that applies Neural Quantum States (NQS) to f
 
 Data is not uploaded here due to storage constraints.
 
+See the tutorial on [Netket](https://netket.readthedocs.io/en/latest/tutorials/lattice-fermions.html) for an introduction to NQS on fermionic systems.
+
 Organization:
 
 common_lib: contains helper functions for simulation
