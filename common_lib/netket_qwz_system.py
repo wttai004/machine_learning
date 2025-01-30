@@ -24,6 +24,10 @@ class NetketSystem:
     def _define_graph_and_hilbert(self):
         pass
 
+    @abstractmethod
+    def get_hamiltonian(self):
+        pass
+
     def get_ed_data(self, k = 2):
         # Convert the Hamiltonian to a sparse matrix
         if self.Ham is None:
@@ -52,9 +56,6 @@ class NetketQWZSystem(NetketSystem):
         self.graph, self.hi = self._define_graph_and_hilbert()
         self.Ham = None
 
-    def _index(self, row, col, spin=0):
-        return spin * self.L * self.L2 + (row * self.L + col)
-
     def _define_graph_and_hilbert(self):
         edge_colors = []
         for row in range(self.L2):
@@ -76,6 +77,7 @@ class NetketQWZSystem(NetketSystem):
     def get_exchange_graph(self):
         edges = []
         for spin in range(2):
+        #for spin in range(int(2 * self.hi.s + 1)):
             for row in range(self.L2):
                 for col in range(self.L - 1):
                     edges.append([self._index(row, col, spin), self._index(row, col + 1, spin)])
@@ -158,6 +160,7 @@ class NetketQWZSystem(NetketSystem):
 
 
 class NetketHubbardSystem(NetketSystem):
+    # This is a spinless Hubbard system with nearest neighbor interaction
     def _define_graph_and_hilbert(self):
         edge_colors = []
         for row in range(self.L2):
@@ -180,10 +183,10 @@ class NetketHubbardSystem(NetketSystem):
         H = 0.0 + 0.0j
         t = self.args['t']
         U = self.args['U']
+        bias = self.args.get('bias', 0)
         for (i, j) in self.graph.edges():
-            for spin in [-1, 1]:
-                H += t * (cdag(self.hi, i, spin) * c(self.hi, j, spin) + cdag(self.hi, j, spin) * c(self.hi, i, spin))
-        for i in self.graph.nodes():
-            H += U * (nc(self.hi, i, 1) + nc(self.hi, i, -1) - 1)**2
+            H += t * (cdag(self.hi, i) * c(self.hi, j) + cdag(self.hi, j) * c(self.hi, i))
+            H += U * nc(self.hi, i) * nc(self.hi, i) 
+        H += bias * nc(self.hi, 0)
         self.Ham = H
         return H
