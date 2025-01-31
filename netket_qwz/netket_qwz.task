@@ -17,5 +17,6 @@ pbc = ["--pbc"]
 n_runs = [1]
 real = ["--real", ""]
 exact_sampling = ["--exact_sampling", ""]
+bias = ["1e-5"]
 
-EXEC('python netket_qwz.py {pbc} {real} {exact_sampling} --L={L} --L2={L2} --N_frac={N_frac} --m={m} --t={t} --U={U} --n_hidden={n_hidden} --n_hidden_layers={n_hidden_layers} --n_iter={n_iter} --learning_rate={learning_rate} --diag_shift={diag_shift} --n_discard_per_chain={n_discard_per_chain} --n_samples={n_samples} --model={model} --max_restarts={max_restarts} --n_runs={n_runs}')
+EXEC('python netket_qwz.py {pbc} {real} {exact_sampling} --L={L} --L2={L2} --N_frac={N_frac} --m={m} --t={t} --U={U} --n_hidden={n_hidden} --n_hidden_layers={n_hidden_layers} --n_iter={n_iter} --learning_rate={learning_rate} --diag_shift={diag_shift} --n_discard_per_chain={n_discard_per_chain} --n_samples={n_samples} --model={model} --max_restarts={max_restarts} --n_runs={n_runs} --bias={bias}')
