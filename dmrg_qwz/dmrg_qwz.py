@@ -79,9 +79,9 @@ if N > Lx * Ly:
 print(f"Initial parameters: m = {m}, t = {t}, U = {U}", flush = True)
 
 if L2 != L:
-    physicalSystemDir = f"L={L}_L2={L2}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
+    physicalSystemDir = f"L={L}_L2={L2}_N={N}_t={t}_m={m}_U={U}_bias={bias}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
 else:
-    physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
+    physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_bias={bias}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
 
 outputFilename=output_dir + physicalSystemDir + f"dmrg_log_chi_max={chi_max}.h5"
 

@@ -156,9 +156,9 @@ def run_simulation(run_id = 1):
         #corrs[f"nc{i}nc0"] = corr_func(i)
     
     if L2 != L:
-        physicalSystemDir = f"L={L}_L2={L2}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
+        physicalSystemDir = f"L={L}_L2={L2}_N={N}_t={t}_m={m}_U={U}_bias={bias}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
     else:
-        physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
+        physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_bias={bias}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
 
     if model_name == "slater":
         print("Using Slater determinant wave function", flush = True)
