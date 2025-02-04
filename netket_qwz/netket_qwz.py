@@ -3,8 +3,6 @@ import netket.experimental as nkx
 from scipy.sparse.linalg import eigsh
 import numpy as np
 import scipy.sparse.linalg
-import jax
-import jax.numpy as jnp
 import json, fcntl
 import time
 import matplotlib.pyplot as plt
@@ -52,11 +50,21 @@ parser.add_argument("--n_runs", type=int, default=1, help="number of runs")
 parser.add_argument("--real", dest="real", help="use real Hamiltonian and model", action="store_false")
 parser.add_argument("--test_exact_energy", dest="test_exact_energy", help="test the exact energy (only for small systems)", action="store_true")
 parser.add_argument("--exact_sampling", dest="exact_sampling", help="use exact sampling instead of Metropolis exchange (only for small systems)", action="store_true")
+parser.add_argument("--use-cpu", dest="use_cpu", help="explicitly uses cpu device for jax (default to GPU on Perlmutter otherwise)", action="store_true")
 
 parser.add_argument("--create_database", dest="create_database", help="create a database", action="store_true")
 parser.add_argument("--database_name", type=str, default="database", help="database directory")
 parser.add_argument("--job_id", type=int, default=0, help="job id")
 args = parser.parse_args()
+
+use_cpu = args.use_cpu
+if use_cpu:
+    os.environ["JAX_PLATFORM_NAME"] = "cpu"
+import jax
+import jax.numpy as jnp
+print(f"Running on {jax.devices()}")
+
+
 
 L = args.L
 L2 = L if args.L2 == -1 else args.L2
@@ -101,6 +109,8 @@ maxVariance = 50
 #outputDir = "/home1/wttai/machine_learning/netket_qwz/data/"
 
 print("NetKet version: ", nk.__version__, flush = True)
+
+print(f"Running on {jax.devices()}")
 
 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 print(f"Starting run at {timestamp}", flush = True)
@@ -291,6 +301,7 @@ def run_simulation(run_id = 1):
         'run_id': run_id,
         'timestamp': time.strftime("%Y-%m-%d %H:%M:%S"),
         'elapsed_time': elapsed_seconds,
+        'use_cpu': use_cpu
     }
 
     mergedData = {
