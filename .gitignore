@@ -36,3 +36,8 @@ QWZ_ed_results/
 
 # ignore all .out files
 *.out
+netket_qwz/netket_qwz.task
+netket_qwz/sbatch_netket_qwz_perlmutter.sbatch
+netket_qwz/netket_qwz.task
+netket_qwz/sbatch_netket_qwz.sbatch
+move_jsons.sh
