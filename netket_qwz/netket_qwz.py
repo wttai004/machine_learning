@@ -1,5 +1,3 @@
-import netket as nk
-import netket.experimental as nkx
 from scipy.sparse.linalg import eigsh
 import numpy as np
 import scipy.sparse.linalg
@@ -12,10 +10,8 @@ import warnings
 import sys, os
 sys.path.append('/Users/wttai/Documents/Jupyter/machine_learning/common_lib')
 sys.path.append('/home1/wttai/machine_learning/common_lib')
+sys.path.append('/global/homes/w/wttai/machine_learning/common_lib')
 #from models_old import get_qwz_graph, get_qwz_Ham, get_qwz_exchange_graph, cdag, c, nc
-from netket_system import NetketQWZSystem
-from networks import *
-from helper import get_ed_data
 
 print("Program running...", flush = True) 
 
@@ -44,16 +40,16 @@ parser.add_argument("--n_hidden", type=int, default=8, help="number of hidden un
 parser.add_argument("--n_hidden_layers", type=int, default=1, help="number of hidden layers in the Neural Jastrow/Backflow model")
 parser.add_argument("--n_iter_trial", type=int, default=100, help="number of iterations attempted to check convergence")
 parser.add_argument("--max_restarts", type=int, default=-1, help="maximum number of restarts")
-parser.add_argument("--output_dir", type=str, default= "/home1/wttai/machine_learning/netket_qwz/data/", help="output directory")
+parser.add_argument("--output_dir", type=str, default= "data/", help="output directory")
 parser.add_argument("--bias", type=float, default=1e-5, help="bias term in the Hamiltonian")
 parser.add_argument("--n_runs", type=int, default=1, help="number of runs")
 parser.add_argument("--real", dest="real", help="use real Hamiltonian and model", action="store_false")
 parser.add_argument("--test_exact_energy", dest="test_exact_energy", help="test the exact energy (only for small systems)", action="store_true")
 parser.add_argument("--exact_sampling", dest="exact_sampling", help="use exact sampling instead of Metropolis exchange (only for small systems)", action="store_true")
-parser.add_argument("--use-cpu", dest="use_cpu", help="explicitly uses cpu device for jax (default to GPU on Perlmutter otherwise)", action="store_true")
+parser.add_argument("--use_cpu", dest="use_cpu", help="explicitly uses cpu device for jax (default to GPU on Perlmutter otherwise)", action="store_true")
 
 parser.add_argument("--create_database", dest="create_database", help="create a database", action="store_true")
-parser.add_argument("--database_name", type=str, default="database", help="database directory")
+parser.add_argument("--database_name", type=str, default="", help="database directory")
 parser.add_argument("--job_id", type=int, default=0, help="job id")
 args = parser.parse_args()
 
@@ -62,6 +58,11 @@ if use_cpu:
     os.environ["JAX_PLATFORM_NAME"] = "cpu"
 import jax
 import jax.numpy as jnp
+import netket as nk
+import netket.experimental as nkx
+from netket_system import NetketQWZSystem
+from networks import *
+from helper import get_ed_data
 print(f"Running on {jax.devices()}")
 
 
@@ -105,12 +106,10 @@ test_exact_energy = args.test_exact_energy
 exact_sampling = args.exact_sampling
 
 maxVariance = 50
-
+perlmutter_scratch_dir = "/pscratch/sd/w/wttai/"
 #outputDir = "/home1/wttai/machine_learning/netket_qwz/data/"
 
 print("NetKet version: ", nk.__version__, flush = True)
-
-print(f"Running on {jax.devices()}")
 
 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 print(f"Starting run at {timestamp}", flush = True)
@@ -166,9 +165,9 @@ def run_simulation(run_id = 1):
         #corrs[f"nc{i}nc0"] = corr_func(i)
     
     if L2 != L:
-        physicalSystemDir = f"L={L}_L2={L2}_N={N}_t={t}_m={m}_U={U}_bias={bias}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
+        physicalSystemDir = f"L={L}_L2={L2}_N={N}_t={t}_m={m}_U={U}_bias={bias}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}{"_cpu" if use_cpu else ""}/"
     else:
-        physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_bias={bias}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}/"
+        physicalSystemDir = f"L={L}_N={N}_t={t}_m={m}_U={U}_bias={bias}_{"pbc" if pbc else "obc"}{"" if complex else "_real"}{"_cpu" if use_cpu else ""}/"
 
     if model_name == "slater":
         print("Using Slater determinant wave function", flush = True)
@@ -315,7 +314,14 @@ def run_simulation(run_id = 1):
 
 
     if create_database:
-        database_location = outputDir + database_name + ".json"
+        #perlmutter_scratch_dir = "/pscratch/sd/w/wttai/"
+        #database_location = perlmutter_scratch_dir + outputDir[:-2] + "_" + database_name + ".json"
+        if database_name == "":
+            # Intended for use in Mobius: create a database in the output directory
+            database_location = outputDir + "database.json"
+        else:
+            # Intended for use in Perlmutter: create a database in the scratch directory
+            database_location = database_name + ".json"
         
         print(f"Creating database at {database_location}", flush = True)
         #os.makedirs(database_name, exist_ok=True)
