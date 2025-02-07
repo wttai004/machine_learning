@@ -47,6 +47,7 @@ parser.add_argument("--real", dest="real", help="use real Hamiltonian and model"
 parser.add_argument("--test_exact_energy", dest="test_exact_energy", help="test the exact energy (only for small systems)", action="store_true")
 parser.add_argument("--exact_sampling", dest="exact_sampling", help="use exact sampling instead of Metropolis exchange (only for small systems)", action="store_true")
 parser.add_argument("--use_cpu", dest="use_cpu", help="explicitly uses cpu device for jax (default to GPU on Perlmutter otherwise)", action="store_true")
+parser.add_argument("--verbose", dest="verbose", help="print more information", action="store_true")
 
 parser.add_argument("--create_database", dest="create_database", help="create a database", action="store_true")
 parser.add_argument("--database_name", type=str, default="", help="database directory")
@@ -104,6 +105,7 @@ job_id = args.job_id
 complex = args.real
 test_exact_energy = args.test_exact_energy
 exact_sampling = args.exact_sampling
+verbose = args.verbose
 
 maxVariance = 50
 perlmutter_scratch_dir = "/pscratch/sd/w/wttai/"
@@ -200,10 +202,13 @@ def run_simulation(run_id = 1):
 
     os.makedirs(outputDir + physicalSystemDir, exist_ok=True)
 
+    if verbose:
+        key = jax.random.PRNGKey(0)
+        dummy_input = jnp.ones((hi.size, hi.n_fermions))
+        print(model.tabulate(key, dummy_input))
+
     print(f"Output will be saved to {outputFilename}", flush=True)
 
-    # Create the Slater determinant model
-    model = LogSlaterDeterminant(hi, complex=complex)
 
     # Define the Metropolis-Hastings sampler
     if exact_sampling:
